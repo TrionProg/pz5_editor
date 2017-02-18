@@ -112,6 +112,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "config"
+version = "0.1.0"
+dependencies = [
+ "lexer 0.1.0",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -291,6 +298,10 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "lexer"
+version = "0.1.0"
+
+[[package]]
 name = "libc"
 version = "0.2.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -454,6 +465,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "pz5"
 version = "0.1.0"
+dependencies = [
+ "config 0.1.0",
+ "rustc-serialize 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "pz5_collada"

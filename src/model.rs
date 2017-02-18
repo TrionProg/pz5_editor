@@ -5,8 +5,8 @@ use pz5_collada;
 use LOD;
 use Mesh;
 
-use pz5::Pz5Model;
-use pz5::Pz5Mesh;
+use pz5::ToPz5Model;
+use pz5::ToPz5Mesh;
 
 use pz5_collada::FromColladaLOD;
 use pz5_collada::FromColladaMesh;
@@ -20,7 +20,7 @@ pub struct Model{
     pub meshes:HashMap<String,Mesh>,
 }
 
-impl Pz5Model for Model{
+impl ToPz5Model for Model{
     type Mesh=Mesh;
 
     fn get_name(&self) -> &String{
@@ -30,7 +30,7 @@ impl Pz5Model for Model{
     fn get_meshes(&self) -> &HashMap<String, Self::Mesh>{
         &self.meshes
     }
-
+    /*
     fn write<WriteTo:std::io::Write>(&self,write_to:&mut WriteTo) -> Result<(),pz5::Error>{
         Ok(())
     }
@@ -39,6 +39,7 @@ impl Pz5Model for Model{
     fn read<ReadFrom:std::io::Read>(read_from:&ReadFrom) -> Result<Self,pz5::Error>{
         Ok(Model{name:String::from("hello"),meshes:HashMap::new()})
     }
+    */
 
     fn print(&self){
         println!("Model {}",self.name);

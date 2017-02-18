@@ -3,8 +3,8 @@ use pz5;
 use pz5_collada;
 use LOD;
 
-use pz5::Pz5Mesh;
-use pz5::Pz5LOD;
+use pz5::ToPz5Mesh;
+use pz5::ToPz5LOD;
 
 use pz5_collada::FromColladaMesh;
 
@@ -17,7 +17,7 @@ pub struct Mesh{
     pub lods:Vec<LOD>,
 }
 
-impl Pz5Mesh for Mesh{
+impl ToPz5Mesh for Mesh{
     type LOD=LOD;
 
     fn get_name(&self) -> &String{
@@ -36,6 +36,7 @@ impl Pz5Mesh for Mesh{
         self.geometry_type
     }
 
+    /*
     fn write<WriteTo:std::io::Write>(&self,write_to:&mut WriteTo) -> Result<(),pz5::Error>{
         Ok(())
     }
@@ -44,6 +45,7 @@ impl Pz5Mesh for Mesh{
     fn read<ReadFrom:std::io::Read>(read_from:&ReadFrom) -> Result<Self,pz5::Error>{
         Ok(Mesh{name:String::from("hello"),semantics:String::from("semantics"),geometry_type:GeometryType::Points,lods:Vec::new()})
     }
+    */
 
     fn print(&self){
         println!("Mesh {}",self.name);

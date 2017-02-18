@@ -2,7 +2,7 @@ extern crate pz5;
 extern crate pz5_collada;
 
 use std::path::Path;
-use pz5::Pz5Model;
+use pz5::ToPz5Model;
 
 mod model;
 pub use model::Model;
@@ -22,15 +22,23 @@ use glium::Surface;
 use glium::glutin;
 use glium::index::PrimitiveType;
 
-use pz5::Pz5LOD;
+use pz5::ToPz5LOD;
 
 fn main() {
-    let model=match Model::load_from_collada(Path::new("pz5_3.dae")){
+    let model=match Model::load_from_collada(Path::new("pz5.dae")){
         Ok( m ) => m,
         Err(e ) => {println!("Error: {}",e); return; }
     };
 
     model.print();
+
+    {
+        let mut file=std::fs::File::create("model.pz5").unwrap();
+        match model.write_pz5(&mut file){
+            Ok ( _ ) => {},
+            Err( e ) => {println!("Error: {}",e); return; }
+        }
+    }
 
     //return;
 

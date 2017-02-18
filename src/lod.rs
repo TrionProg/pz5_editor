@@ -2,7 +2,7 @@ use std;
 use pz5;
 use pz5_collada;
 
-use pz5::Pz5LOD;
+use pz5::ToPz5LOD;
 
 use pz5_collada::FromColladaLOD;
 
@@ -12,7 +12,7 @@ pub struct LOD{
     pub vertices_count:usize,
 }
 
-impl Pz5LOD for LOD{
+impl ToPz5LOD for LOD{
     fn get_distance(&self) -> f32{
         self.distance
     }
@@ -29,6 +29,7 @@ impl Pz5LOD for LOD{
         self.vertices_count
     }
 
+    /*
     fn write<WriteTo:std::io::Write>(&self,write_to:&mut WriteTo) -> Result<(),pz5::Error>{
         Ok(())
     }
@@ -36,6 +37,7 @@ impl Pz5LOD for LOD{
     fn read<ReadFrom:std::io::Read>(read_from:&ReadFrom) -> Result<Self,pz5::Error>{
         Ok(LOD{distance:0.0,geometry:Vec::new(),vertices_count:0})
     }
+    */
 
     fn print(&self){
         println!("LOD distance {}",self.distance);
