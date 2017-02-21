@@ -1,14 +1,13 @@
 use std;
 use pz5;
 use pz5_collada;
+use collada;
+
 use LOD;
 
-use pz5::ToPz5Mesh;
-use pz5::ToPz5LOD;
-
-use pz5_collada::FromColladaMesh;
-
-use pz5::GeometryType;
+enum Parent<'a>{
+    ColladaVirtualMesh(pz5_collada::VirtualMesh<'a>),
+}
 
 pub struct Mesh{
     pub name:String,
@@ -16,7 +15,7 @@ pub struct Mesh{
     pub geometry_type:GeometryType,
     pub lods:Vec<LOD>,
 }
-
+/*
 impl ToPz5Mesh for Mesh{
     type LOD=LOD;
 
@@ -62,3 +61,4 @@ impl FromColladaMesh for Mesh{
     type LOD=LOD;
     type Error=pz5_collada::Error;
 }
+*/

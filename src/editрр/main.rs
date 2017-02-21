@@ -1,33 +1,6 @@
 extern crate pz5;
 extern crate pz5_collada;
-extern crate collada;
 
-pub mod error;
-pub use error::Error;
-
-pub mod input;
-pub mod edit;
-
-pub mod object;
-pub use object::Object;
-
-fn main(){
-    let mut object=None;
-
-    object=Some(Box::new(Object::empty()));
-
-    match object{
-        Some( mut object ) => {
-            match object.as_mut().include_collada_model(std::path::Path::new("pz5.dae")){
-                Ok( m ) => m,
-                Err(e ) => {println!("Error: {}",e); return; }
-            };
-        },
-        None => {},
-    }
-}
-
-/*
 use std::path::Path;
 use pz5::ToPz5Model;
 
@@ -202,4 +175,3 @@ fn main() {
         support::Action::Continue
     });
 }
-*/

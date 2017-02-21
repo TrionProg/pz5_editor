@@ -1,25 +1,21 @@
 use std;
 use pz5;
 use pz5_collada;
+use collada;
 
-use LOD;
-use Mesh;
+use super::Mesh;
 
-use pz5::ToPz5Model;
-use pz5::ToPz5Mesh;
-
-use pz5_collada::FromColladaLOD;
-use pz5_collada::FromColladaMesh;
-use pz5_collada::FromColladaModel;
-
-use std::collections::HashMap;
-use std::path::Path;
-
-pub struct Model{
-    pub name:String,
-    pub meshes:HashMap<String,Mesh>,
+enum Parent<'a>{
+    ColladaDocument(collada::ColladaDocument, Vec<virtualMeshes>),
+    //Pz5Model(&'a Model),
 }
 
+pub struct Model<'a>{
+    parent:Parent<'a>,
+    pub name:String,
+    pub meshes:Vec<Mesh>,
+}
+/*
 impl ToPz5Model for Model{
     type Mesh=Mesh;
 
@@ -48,9 +44,9 @@ impl ToPz5Model for Model{
         }
     }
 }
+*/
 
-
-
+/*
 impl FromColladaModel for Model{
     type Mesh=Mesh;
     type Error=pz5_collada::Error;
@@ -95,3 +91,4 @@ impl Model{
         Ok(model)
     }
 }
+*/

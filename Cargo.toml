@@ -6,6 +6,7 @@ authors = ["trionprog <trionprog@gmail.com>"]
 [dependencies]
 pz5 = { path = "../pz5" }
 pz5_collada = { path = "../pz5_collada" }
+collada = { path = "../collada" }
 glium = "*"
 cgmath = "0.9.1"
 glutin = "*"
