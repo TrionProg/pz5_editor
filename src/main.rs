@@ -1,17 +1,51 @@
 extern crate pz5;
 extern crate pz5_collada;
 extern crate collada;
+#[macro_use]
+extern crate glium;
+extern crate glutin;
+
+use std::env;
+use std::io::Write;
 
 pub mod error;
 pub use error::Error;
-
+/*
 pub mod input;
 pub mod edit;
+pub mod render;
+*/
+pub mod render;
+pub use render::Render;
 
 pub mod object;
 pub use object::Object;
 
+pub mod application;
+pub use application::Application;
+
 fn main(){
+    let mut args=env::args();
+    let gui=match args.nth(0) {
+        Some( ref mode ) => {
+            match mode.as_str() {
+                "convert" => false,
+                _ => true,
+            }
+        },
+        None => true,
+    };
+
+    let mut application=match Application::new(gui){
+        Ok ( a ) => a,
+        Err( e ) => {writeln!(&mut std::io::stderr(), "{}", e); return;},
+    };
+
+    match application.include_collada_model(std::path::Path::new("pz5.dae")){
+        Ok( _ ) => {},
+        Err(e ) => {println!("Error: {}",e); return; }
+    };
+    /*
     let mut object=None;
 
     object=Some(Box::new(Object::empty()));
@@ -25,6 +59,7 @@ fn main(){
         },
         None => {},
     }
+    */
 }
 
 /*

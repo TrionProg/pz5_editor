@@ -60,7 +60,7 @@ impl Model{
                 Ok(
                     Mesh{
                         name:virtual_mesh.name.clone(),
-                        vertex_full_format:virtual_mesh.full_vertex_format.clone(),
+                        full_vertex_format:virtual_mesh.full_vertex_format.clone(),
                         geometry_type:virtual_mesh.geometry_type,
                         lods:lods,
                     }

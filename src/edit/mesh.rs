@@ -9,8 +9,12 @@ use super::LOD;
 
 pub struct Mesh{
     input_mesh:Rc<input::Mesh>,
+
     name:String,
-    vertex_full_format:String,
+    full_vertex_format:String,
+    include:bool,
+    display:bool,
+
     lods:Vec<LOD>,
     description:String,
 }
@@ -18,7 +22,7 @@ pub struct Mesh{
 impl Mesh{
     pub fn new(input_mesh:Rc<input::Mesh>) -> Self{
         let name=input_mesh.name.clone();
-        let vertex_full_format=input_mesh.vertex_full_format.clone();
+        let full_vertex_format=input_mesh.full_vertex_format.clone();
 
         let mut lods=Vec::with_capacity(2);
         for input_lod in input_mesh.lods.iter(){
@@ -29,10 +33,25 @@ impl Mesh{
 
         Mesh{
             input_mesh:input_mesh,
+
             name:name,
-            vertex_full_format:vertex_full_format,
+            full_vertex_format:full_vertex_format,
+            include:true,
+            display:true,
+
             lods:lods,
             description:String::new(),
+        }
+    }
+
+    pub fn render(&self){
+        if !self.display || !self.include {
+            return;
+        }
+
+        for lods in self.lods.iter(){
+            //render and break
+            //вот думаю надо именно опред индекс брать из УПООРЯДОЧ. Массива
         }
     }
 }

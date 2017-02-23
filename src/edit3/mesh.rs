@@ -13,7 +13,7 @@ use super::LOD;
 
 pub struct Mesh{
     pub name:String,
-    pub vertex_full_format:String,
+    pub full_vertex_format:String,
     pub geometry_type:pz5::GeometryType,
     pub lods:Vec<Rc<LOD>>,
 }
