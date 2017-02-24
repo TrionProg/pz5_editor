@@ -13,7 +13,7 @@ enum Dimension{
 }
 
 pub struct Program{
-    glium_program:glium::Program,
+    pub glium_program:glium::Program,
 }
 
 impl Program{
@@ -35,12 +35,38 @@ impl Program{
     }
 
     fn generate_full_vertex_format(dimension:Dimension, is_normal:bool, is_tex_coords:bool) -> String{
+        /*
         let mut full_vertex_format=String::with_capacity(32);
 
         full_vertex_format.push_str(
             match dimension {
-                Dimension::V2D => "VERTEX(X:f32,Y:f32)",
-                Dimension::V3D => "VERTEX(X:f32,Y:f32,Z:f32)",
+                Dimension::V2D => "VERTEX:(X:f32,Y:f32)",
+                Dimension::V3D => "VERTEX:(X:f32,Y:f32,Z:f32)",
+            }
+        );
+
+        if is_normal {
+            full_vertex_format.push_str(
+                match dimension {
+                    Dimension::V2D => " NORMAL:(X:f32,Y:f32)",
+                    Dimension::V3D => " NORMAL:(X:f32,Y:f32,Z:f32)",
+                }
+            );
+        }
+
+        if is_tex_coords {
+            full_vertex_format.push_str( " TEXCOORD:(U:f32,V:f32)" );
+        }
+
+        full_vertex_format
+        */
+
+        let mut full_vertex_format=String::with_capacity(32);
+
+        full_vertex_format.push_str(
+            match dimension {
+                Dimension::V2D => "VERTEX:(X:float,Y:float)",
+                Dimension::V3D => "VERTEX:(X:float,Y:float,Z:float)",
             }
         );
 

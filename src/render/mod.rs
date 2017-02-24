@@ -15,5 +15,8 @@ pub use self::object::Object;
 pub mod program;
 pub use self::program::Program;
 
+pub mod frame;
+pub use self::frame::ObjectFrame;
+
 pub mod render;
 pub use self::render::Render;

@@ -8,9 +8,14 @@ use std::collections::HashMap;
 use Error;
 use super::Program;
 
+use ObjectFrame;
+
+use support;
+use support::camera::CameraState;
+
 pub struct Render{
-    display:glium::backend::glutin_backend::GlutinFacade,
-    programs:HashMap<String,Rc<Program>>,
+    pub display:glium::backend::glutin_backend::GlutinFacade,
+    pub programs:HashMap<String,Rc<Program>>,
 }
 
 impl Render{

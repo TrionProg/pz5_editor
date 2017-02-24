@@ -1,6 +1,7 @@
 use std;
 use pz5;
 use pz5_collada;
+use glium;
 
 use std::rc::Rc;
 
@@ -12,6 +13,7 @@ use std::path::Path;
 
 use Error;
 use Render;
+use ObjectFrame;
 
 use super::Mesh;
 use super::LOD;
@@ -77,20 +79,23 @@ impl Model{
         |document, virtual_meshes|{
             let meshes=Self::build_meshes(virtual_meshes,
             |virtual_mesh|{
-                let vertex_format=Mesh::adapt_vertex_format(&virtual_mesh.full_vertex_format)?;
+                //let vertex_format=Mesh::adapt_vertex_format(&virtual_mesh.full_vertex_format)?;
+                //remove & from vf
+                //adapt and use adapted vf for lods
+
+                let vertex_format=String::from("VERTEX:(X:float,Y:float)");
 
                 let lods=Mesh::build_lods(virtual_mesh,
-                |virtual_lod,collada_geometry|{
-                    let id=collada_geometry.id;
+                |virtual_lod,geometry|{
+                    let id=geometry.collada_mesh.id;
 
                     LOD::new(
                         virtual_lod.distance,
                         id,
-                        Geometry::ColladaGeometry(collada_geometry),
+                        Geometry::ColladaGeometry(geometry),
                         virtual_lod.vertices_count,
                         String::new(),
-                        render.clone(),
-                        &vertex_format
+                        render.is_some(),
                     )
                 })?;
 
@@ -101,7 +106,7 @@ impl Model{
                     virtual_mesh.geometry_type,
                     lods,
                     String::new(),
-                    render.is_some(),
+                    render.clone(),
                 )
             })?;
 
@@ -115,5 +120,17 @@ impl Model{
         })?;
 
         Ok(model)
+    }
+
+    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawError>{
+        if !self.display {
+            return Ok(());
+        }
+
+        for (_,mesh) in self.meshes.iter(){
+            mesh.render(frame)?;
+        }
+
+        Ok(())
     }
 }

@@ -17,16 +17,18 @@ pub mod render;
 */
 pub mod render;
 pub use render::Render;
+pub use render::ObjectFrame;
 
 pub mod object;
 pub use object::Object;
 
-pub mod application;
-pub use application::Application;
+mod support;
+pub mod gui;
+pub use gui::GUI;
 
 fn main(){
     let mut args=env::args();
-    let gui=match args.nth(0) {
+    let gui_mode=match args.nth(0) {
         Some( ref mode ) => {
             match mode.as_str() {
                 "convert" => false,
@@ -36,30 +38,12 @@ fn main(){
         None => true,
     };
 
-    let mut application=match Application::new(gui){
-        Ok ( a ) => a,
-        Err( e ) => {writeln!(&mut std::io::stderr(), "{}", e); return;},
-    };
-
-    match application.include_collada_model(std::path::Path::new("pz5.dae")){
-        Ok( _ ) => {},
-        Err(e ) => {println!("Error: {}",e); return; }
-    };
-    /*
-    let mut object=None;
-
-    object=Some(Box::new(Object::empty()));
-
-    match object{
-        Some( mut object ) => {
-            match object.as_mut().include_collada_model(std::path::Path::new("pz5.dae")){
-                Ok( m ) => m,
-                Err(e ) => {println!("Error: {}",e); return; }
-            };
-        },
-        None => {},
+    if gui_mode{
+        match GUI::process(){
+            Ok ( a ) => a,
+            Err( e ) => {writeln!(&mut std::io::stderr(), "{}", e); return;},
+        };
     }
-    */
 }
 
 /*

@@ -11,6 +11,8 @@ pub enum Error{
     GliumCreationError(Box<glium::GliumCreationError<glium::glutin::CreationError>>),
     ProgramCreationError(Box<glium::program::ProgramCreationError>),
     ProgramChooserCreationError(Box<glium::program::ProgramChooserCreationError>),
+    BufferCreationError(Box<glium::vertex::BufferCreationError>),
+    NoShaderProgram(String),
 }
 
 impl From<pz5_collada::from_collada::Error> for Error {
@@ -37,6 +39,15 @@ impl From<glium::program::ProgramChooserCreationError> for Error {
     }
 }
 
+impl From<glium::vertex::BufferCreationError> for Error {
+    fn from(buffer_creation_error: glium::vertex::BufferCreationError) -> Self{
+        Error::BufferCreationError( Box::new(buffer_creation_error) )
+    }
+}
+
+
+
+
 impl std::fmt::Display for Error{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self{
@@ -46,6 +57,8 @@ impl std::fmt::Display for Error{
             Error::GliumCreationError(ref e) => write!(f, "Can not create window. Error:{}", e),
             Error::ProgramCreationError(ref e) => write!(f, "Can not create shader program. Error:{}", e),
             Error::ProgramChooserCreationError(ref e) => write!(f, "Can not choose shader program. Error:{}", e),
+            Error::NoShaderProgram(ref full_vertex_format) => write!(f, "No shader program for \"{}\"", full_vertex_format),
+            Error::BufferCreationError(ref e) => write!(f, "Can not create buffer:{}", e),
             //Error::Pz5DocumentWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Pz5BinaryDataWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Other(ref message) => write!(f, "{}", message),

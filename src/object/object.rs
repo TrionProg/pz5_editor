@@ -1,4 +1,5 @@
 use std;
+use glium;
 
 
 use std::path::Path;
@@ -10,6 +11,7 @@ use Error;
 use Render;
 
 use super::Model;
+use ObjectFrame;
 
 pub struct Object{
     model_id:usize,
@@ -31,6 +33,14 @@ impl Object{
 
         self.models.insert(self.model_id, Rc::new(model));
         self.model_id+=1;
+
+        Ok(())
+    }
+
+    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawError>{
+        for (_,model) in self.models.iter(){
+            model.render(frame)?;
+        }
 
         Ok(())
     }
