@@ -8,6 +8,7 @@ use std::sync::{Mutex,RwLock};
 
 use pz5_collada::from_collada::FromColladaModel;
 use pz5_collada::from_collada::FromColladaMesh;
+use pz5_collada::from_collada::FromColladaLOD;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -17,6 +18,7 @@ use Error;
 use Object;
 //use ObjectFrame;
 
+use super::LOD;
 use super::Mesh;
 use super::Geometry;
 
@@ -39,13 +41,13 @@ pub struct Model{
 impl FromColladaModel for Model{
     type Mesh=Mesh;
     type Error=Error;
+    type Container=Arc<Self>;
 }
 
 impl Model{
     pub fn new(
         name:String,
         description:String,
-        display:bool,
 
         object:&Object
     ) -> Result< Arc<Self>, Error >{
@@ -65,7 +67,7 @@ impl Model{
             ),
         };
 
-        object.add_model(model)
+        object.add_model_to_list(model)
     }
 
     pub fn add_mesh(&self, mesh:Arc<Mesh>){
@@ -79,7 +81,6 @@ impl Model{
         }
 
         let mut meshes_guard=self.meshes.write().unwrap();
-        //let meshes=&meshes_guard;
 
         let mut cnt=0;
         let base_name=mesh.attrib.read().unwrap().name.clone();
@@ -113,7 +114,7 @@ impl Model{
 
         Ok(model_name)
     }
-/*
+
     pub fn load_from_collada(file_name:&Path, object:&Object) -> Result<(),Error>{
         let model_name=Self::get_model_name(file_name)?;
 
@@ -121,32 +122,54 @@ impl Model{
             let model=Model::new(
                 model_name,
                 String::new(),
-                object.is_gui,
-            );
 
-            let mut meshes=HashMap::new();
+                object
+            )?;
 
             for (_,virtual_mesh) in virtual_meshes.iter(){
                 let mesh=Mesh::build(virtual_mesh,|virtual_mesh|{
-                    ..lods
+                    let mesh=Mesh::new(
+                        virtual_mesh.name.clone(),
+                        virtual_mesh.vertex_format.clone(),
+                        virtual_mesh.geometry_type,
+                        String::new(),
 
-                    let mesh=object.add_mesh(
-                        Mesh::new(
-                            virtual_mesh.name.clone(),
-                            virtual_mesh.vertex_format.clone(),
-                            vertex_format,
-                            virtual_mesh.geometry_type,
-                            lods,
-                            String::new(),
-                            render.clone(),
-                        )
-                    );
+                        object
+                    )?;
 
-                    mesh.
+                    for virtual_lod in virtual_mesh.lods.iter(){
+                        let lod=LOD::build(virtual_lod,|virtual_lod,geometry|{
+                            let lod=LOD::new(
+                                virtual_lod.distance,
+                                Geometry::ColladaGeometry(geometry),
+                                virtual_lod.vertices_count,
+                                String::new(),
 
-                    object.add_mesh(mesh.clone());
+                                object,
+                            )?;
 
-                    ObjectFrame
+                            Ok(lod)
+                        })?;
+
+                        mesh.add_lod(lod);
+                    }
+
+                    Ok(mesh)
+                })?;
+
+                model.add_mesh(mesh);
+            }
+
+            Ok(model)
+        })?;
+
+        object.add_model(model);
+
+        Ok(())
+    }
+
+/*
+                }
 
     pub fn include_collada_model(file_name:&Path, object:&mut Object>) -> Result<Self,Error> {
         let model_name=Self::get_model_name(file_name)?;

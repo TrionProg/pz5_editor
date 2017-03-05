@@ -31,7 +31,7 @@ impl Application{
 
         let camera=Arc::new(RwLock::new(Camera::new(&window)?));
         let state=Arc::new(State::new());
-        //let object=Arc::new(None);
+        let object=Arc::new(RwLock::new(None));
 
         let (to_render_tx, to_render_rx) = channel();
         let (to_process_tx, to_process_rx) = channel();
@@ -39,6 +39,7 @@ impl Application{
         let process_handle=Self::run_process_thread(process::ProcessData{
             camera:camera.clone(),
             state:state.clone(),
+            object:object.clone(),
             to_process_rx:to_process_rx,
             to_render_tx:to_render_tx,
         });
@@ -49,6 +50,7 @@ impl Application{
             camera:camera,
             state:state,
             gui:gui,
+            object:object,
             to_process_tx:to_process_tx,
             to_render_rx:to_render_rx,
         });

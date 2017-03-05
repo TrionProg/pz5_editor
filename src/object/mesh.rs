@@ -42,6 +42,7 @@ pub struct Mesh{
 impl FromColladaMesh for Mesh{
     type LOD=LOD;
     type Error=Error;
+    type Container=Arc<Self>;
 }
 
 impl Mesh{
@@ -74,7 +75,7 @@ impl Mesh{
             ),
         };
 
-        object.add_mesh( mesh )
+        object.add_mesh_to_list( mesh )
     }
 
     pub fn add_lod(&self, lod:Arc<LOD>){
@@ -87,7 +88,15 @@ impl Mesh{
             *lod_mesh=Some(self.id); //Can take Weak by arc in object.meshes
         }
 
-        self.lods.write().unwrap().push(lod);
+        let mut lods_guard=self.lods.write().unwrap();
+
+        lods_guard.push(lod);
+        lods_guard.sort_by(|lod1,lod2| {
+            let dist1=lod1.attrib.read().unwrap().distance;
+            let dist2=lod2.attrib.read().unwrap().distance;
+
+            dist1.partial_cmp(&dist2).unwrap()
+        });
     }
 /*
 

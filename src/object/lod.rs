@@ -38,6 +38,7 @@ pub struct LOD{
 
 impl FromColladaLOD for LOD{
     type Error=Error;
+    type Container=Arc<Self>;
 }
 
 impl LOD{
@@ -69,7 +70,7 @@ impl LOD{
             ),
         };
 
-        object.add_lod( lod )
+        object.add_lod_to_list( lod )
     }
 
     /*

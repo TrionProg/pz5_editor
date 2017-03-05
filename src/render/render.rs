@@ -15,6 +15,7 @@ use Storage;
 use Camera;
 use State;
 use GUI;
+use Object;
 use process::ProcessTask;
 
 use pz5::GeometryType;
@@ -26,12 +27,14 @@ pub struct RenderData{
     pub camera:Arc<RwLock<Camera>>,
     pub state:Arc<State>,
     pub gui:GUI,
+    pub object:Arc<RwLock< Option<Object> >>,
     pub to_process_tx:mpsc::Sender<ProcessTask>,
     pub to_render_rx:mpsc::Receiver<RenderTask>,
 }
 
 pub enum RenderTask{
-    LoadLOD{geometry:Pz5Geometry, vertex_format:String, geometry_type:GeometryType}
+    Error(String),
+    LoadLOD{geometry:Pz5Geometry, vertex_format:String, geometry_type:GeometryType},
 }
 
 pub fn render_thread(render_data:RenderData) -> Result<(),RenderError>{
@@ -42,6 +45,7 @@ pub fn render_thread(render_data:RenderData) -> Result<(),RenderError>{
             match data.to_render_rx.try_recv(){
                 Ok ( task ) => {
                     match task{
+                        RenderTask::Error(_) => {},
                         RenderTask::LoadLOD{geometry,vertex_format,geometry_type} => {},//data.storage.load_lod
                     }
                 },
