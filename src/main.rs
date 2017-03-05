@@ -4,27 +4,39 @@ extern crate collada;
 #[macro_use]
 extern crate glium;
 extern crate glutin;
+extern crate cgmath;
 
 use std::env;
 use std::io::Write;
 
 pub mod error;
 pub use error::Error;
-/*
-pub mod input;
-pub mod edit;
-pub mod render;
-*/
-pub mod render;
-pub use render::Render;
-pub use render::ObjectFrame;
+
+pub mod window;
+pub use window::Window;
+
+pub mod gui;
+pub use gui::GUI;
+
+pub mod storage;
+pub use storage::Storage;
+
+pub mod camera;
+pub use camera::Camera;
 
 pub mod object;
 pub use object::Object;
 
-mod support;
-pub mod gui;
-pub use gui::GUI;
+pub mod state;
+pub use state::State;
+
+pub mod render;
+pub use render::RenderError;
+
+pub mod process;
+
+pub mod application;
+pub use application::Application;
 
 fn main(){
     let mut args=env::args();
@@ -39,7 +51,7 @@ fn main(){
     };
 
     if gui_mode{
-        match GUI::process(){
+        match Application::run(){
             Ok ( a ) => a,
             Err( e ) => {writeln!(&mut std::io::stderr(), "{}", e); return;},
         };

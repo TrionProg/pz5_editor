@@ -1,0 +1,4 @@
+
+pub enum RenderError{
+    NoWindow,
+} 

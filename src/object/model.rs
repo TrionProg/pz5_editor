@@ -3,62 +3,104 @@ use pz5;
 use pz5_collada;
 use glium;
 
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::{Mutex,RwLock};
 
 use pz5_collada::from_collada::FromColladaModel;
 use pz5_collada::from_collada::FromColladaMesh;
 
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::path::Path;
 
 use Error;
-use Render;
-use ObjectFrame;
+use Object;
+//use ObjectFrame;
 
 use super::Mesh;
-use super::LOD;
 use super::Geometry;
 
-pub struct Model{
-    key_id:usize,
-
+pub struct ModelAttrib{
     pub name:String,
-    pub meshes:HashMap<String,Rc<Mesh>>,
-    pub description:String,
+    pub description: String,
 
-    pub include:bool,
-    pub display:bool,
+    pub include: bool,
+    pub display: bool,
+}
+
+pub struct Model{
+    pub id:usize,
+
+    pub meshes: RwLock< HashMap<String, Arc<Mesh>> >,
+
+    pub attrib:RwLock< ModelAttrib >,
 }
 
 impl FromColladaModel for Model{
     type Mesh=Mesh;
-    type Container=Rc<Mesh>;
     type Error=Error;
 }
 
 impl Model{
     pub fn new(
-        key_id:usize,
         name:String,
-        meshes:HashMap<String,Rc<Mesh>>,
         description:String,
         display:bool,
-    ) -> Result<Self, Error>{
+
+        object:&Object
+    ) -> Result< Arc<Self>, Error >{
         let model=Model{
-            key_id:key_id,
+            id:0,
 
-            name:name,
-            meshes:meshes,
-            description:description,
+            meshes:RwLock::new( HashMap::new() ),
 
-            include:true,
-            display:display,
+            attrib:RwLock::new(
+                ModelAttrib{
+                    name:name,
+                    description:description,
+
+                    include:true,
+                    display:object.is_gui,
+                }
+            ),
         };
 
-        Ok( model )
+        object.add_model(model)
     }
 
-    fn get_model_name(file_name:&Path) -> Result<String,Error>{
+    pub fn add_mesh(&self, mesh:Arc<Mesh>){
+        {
+            let mut mesh_model=mesh.model.lock().unwrap();
+
+            if *mesh_model!=None {
+                //выписать mesh
+            }
+            *mesh_model=Some(self.id); //Can take Weak by arc in object.models
+        }
+
+        let mut meshes_guard=self.meshes.write().unwrap();
+        //let meshes=&meshes_guard;
+
+        let mut cnt=0;
+        let base_name=mesh.attrib.read().unwrap().name.clone();
+        let mut name=base_name.clone();
+
+        loop{
+            match meshes_guard.entry(name.clone()) {
+                Entry::Vacant(e) => {
+                    e.insert(mesh);
+                    break;
+                },
+                Entry::Occupied(_) => {
+                    cnt+=1;
+                    let name=format!("{}.{}",base_name,cnt);
+                    mesh.attrib.write().unwrap().name=name.clone();
+                }
+            }
+        }
+    }
+
+    pub fn get_model_name(file_name:&Path) -> Result<String,Error>{
         let model_name=match file_name.file_name() {
             Some( file_name_os_str ) => {
                 match file_name_os_str.to_str() {
@@ -71,44 +113,109 @@ impl Model{
 
         Ok(model_name)
     }
-
-    pub fn include_collada_model(file_name:&Path, model_id:usize, render:&Option<Rc<Render>>) -> Result<Self,Error> {
+/*
+    pub fn load_from_collada(file_name:&Path, object:&Object) -> Result<(),Error>{
         let model_name=Self::get_model_name(file_name)?;
+
+        let model=Model::build(file_name,|document, virtual_meshes|{
+            let model=Model::new(
+                model_name,
+                String::new(),
+                object.is_gui,
+            );
+
+            let mut meshes=HashMap::new();
+
+            for (_,virtual_mesh) in virtual_meshes.iter(){
+                let mesh=Mesh::build(virtual_mesh,|virtual_mesh|{
+                    ..lods
+
+                    let mesh=object.add_mesh(
+                        Mesh::new(
+                            virtual_mesh.name.clone(),
+                            virtual_mesh.vertex_format.clone(),
+                            vertex_format,
+                            virtual_mesh.geometry_type,
+                            lods,
+                            String::new(),
+                            render.clone(),
+                        )
+                    );
+
+                    mesh.
+
+                    object.add_mesh(mesh.clone());
+
+                    ObjectFrame
+
+    pub fn include_collada_model(file_name:&Path, object:&mut Object>) -> Result<Self,Error> {
+        let model_name=Self::get_model_name(file_name)?;
+
+        Model::new(
+            model_name,
+            String::new(),
+            object.is_gui,
+        )
 
         let model=<Self as FromColladaModel>::build(file_name,
         |document, virtual_meshes|{
-            let meshes=Self::build_meshes(virtual_meshes,
-            |virtual_mesh|{
-                //let vertex_format=Mesh::adapt_vertex_format(&virtual_mesh.full_vertex_format)?;
-                //remove & from vf
-                //adapt and use adapted vf for lods
+            let mut meshes=HashMap::new();
 
-                let vertex_format=String::from("VERTEX:(X:float,Y:float)");
+            for (_,virtual_mesh) in virtual_meshes.iter(){
+                let mesh=Mesh::build(virtual_mesh,|virtual_mesh|{
+                    //let vertex_format=Mesh::adapt_vertex_format(&virtual_mesh.vertex_format)?;
+                    //remove & from vf
+                    //adapt and use adapted vf for lods
 
-                let lods=Mesh::build_lods(virtual_mesh,
-                |virtual_lod,geometry|{
-                    let id=geometry.collada_mesh.id;
+                    let vertex_format=String::from("VERTEX:(X:f32,Y:f32)");
 
-                    LOD::new(
-                        virtual_lod.distance,
-                        id,
-                        Geometry::ColladaGeometry(geometry),
-                        virtual_lod.vertices_count,
+                    Mesh::new(
+                        virtual_mesh.name.clone(),
+                        virtual_mesh.vertex_format.clone(),
+                        vertex_format,
+                        virtual_mesh.geometry_type,
+                        lods,
                         String::new(),
-                        render.is_some(),
+                        render.clone(),
+                    )
+
+                    let mut lods=Vec::with_capacity(virtual_mesh.lods.len());
+
+                    for virtual_lod in virtual_mesh.lods.iter(){
+                        let lod = LOD::build(virtual_lod,|virtual_lod,geometry|{
+                            let id=geometry.collada_mesh.id;
+
+                            LOD::new(
+                                virtual_lod.distance,
+                                id,
+                                Geometry::ColladaGeometry(geometry),
+                                virtual_lod.vertices_count,
+                                String::new(),
+                                render.is_some(),
+                            )
+                        })?;
+
+                        lods.push(Arc::new(lod));
+                    }
+
+                    Mesh::new(
+                        virtual_mesh.name.clone(),
+                        virtual_mesh.vertex_format.clone(),
+                        vertex_format,
+                        virtual_mesh.geometry_type,
+                        lods,
+                        String::new(),
+                        render.clone(),
                     )
                 })?;
 
-                Mesh::new(
-                    virtual_mesh.name.clone(),
-                    virtual_mesh.full_vertex_format.clone(),
-                    vertex_format,
-                    virtual_mesh.geometry_type,
-                    lods,
-                    String::new(),
-                    render.clone(),
-                )
-            })?;
+                match meshes.entry(mesh.name.clone()){
+                    Entry::Occupied( _ ) => return Err(Self::Error::from(
+                        Error::Other( format!("Mesh \"{}\" already exists",mesh.name) )
+                    )),
+                    Entry::Vacant( e ) => {e.insert(Arc::new(mesh));},
+                }
+            }
 
             Model::new(
                 model_id,
@@ -133,4 +240,5 @@ impl Model{
 
         Ok(())
     }
+*/
 }

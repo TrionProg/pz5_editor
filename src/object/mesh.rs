@@ -4,82 +4,99 @@ use pz5_collada;
 use glium;
 use render;
 
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::{Mutex,RwLock};
 
 use pz5_collada::from_collada::FromColladaMesh;
 use std::collections::HashMap;
+use pz5::vertex_format::VertexFormat;
+use pz5::GeometryType;
 
 use Error;
-use Render;
+use Object;
 
 use super::LOD;
-use ObjectFrame;
+//use ObjectFrame;
 
-
-pub struct Mesh{
-    key_name:String,
-    in_full_vertex_format:String,
-
+pub struct MeshAttrib{
     pub name:String,
-    pub full_vertex_format:String,
-    pub geometry_type:pz5::GeometryType,
-    pub lods:Vec<Rc<LOD>>,
+    pub vertex_format:String,
+    pub geometry_type:GeometryType,
     pub description:String,
 
     pub include:bool,
     pub display:bool,
 }
 
+pub struct Mesh{
+    pub id:usize,
+    pub vertex_format:String,
+    pub geometry_type:GeometryType,
+
+    pub model:Mutex< Option<usize> >,
+    pub lods:RwLock< Vec<Arc<LOD>> >,
+
+    pub attrib:RwLock< MeshAttrib >,
+}
+
 impl FromColladaMesh for Mesh{
     type LOD=LOD;
-    type Container=Rc<LOD>;
     type Error=Error;
-
-    fn get_name(&self) -> &String{
-        &self.name
-    }
 }
 
 impl Mesh{
     pub fn new(
         name:String,
-        in_full_vertex_format:String,
-        full_vertex_format:String,
-        geometry_type:pz5::GeometryType,
-        lods:Vec<Rc<LOD>>,
+        vertex_format:String,
+        geometry_type:GeometryType,
         description:String,
-        render:Option<Rc<Render>>,
-    ) -> Result<Self, Error>{
-        let key_name=name.clone();
 
-        let mut mesh=Mesh{
-            key_name:key_name,
-            in_full_vertex_format:in_full_vertex_format,
+        object:&Object
+    ) -> Result< Arc<Self>, Error >{
+        let mesh=Mesh{
+            id:0,
+            vertex_format:vertex_format.clone(),
+            geometry_type:geometry_type.clone(),
 
-            name:name,
-            full_vertex_format:full_vertex_format,
-            geometry_type:geometry_type,
-            lods:lods,
-            description:description,
+            model:Mutex::new( None ),
+            lods:RwLock::new( Vec::new() ),
 
-            include:true,
-            display:render.is_some(),
+            attrib:RwLock::new(
+                MeshAttrib{
+                    name:name,
+                    vertex_format:vertex_format,
+                    geometry_type:geometry_type,
+                    description:description,
+
+                    include:true,
+                    display:object.is_gui,
+                }
+            ),
         };
 
-        match render{
-            Some( ref render ) => mesh.build_render_lods(render)?,
-            None => {},
-        }
-
-        Ok( mesh )
+        object.add_mesh( mesh )
     }
 
+    pub fn add_lod(&self, lod:Arc<LOD>){
+        {
+            let mut lod_mesh=lod.mesh.lock().unwrap();
+
+            if *lod_mesh!=None {
+                //выписать lod
+            }
+            *lod_mesh=Some(self.id); //Can take Weak by arc in object.meshes
+        }
+
+        self.lods.write().unwrap().push(lod);
+    }
+/*
+
     pub fn build_render_lods(&mut self, render:&Render) -> Result<(),Error> {
-        let full_vertex_format_str=String::from("VERTEX:(X:float,Y:float)");
-        let full_vertex_format=pz5::VertexFormat::parse(&full_vertex_format_str).unwrap();
+        let vertex_format_str=String::from("VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)");
+        let vertex_format=VertexFormat::parse(&vertex_format_str).unwrap();
 
         for lod in self.lods.iter_mut(){
-            Rc::get_mut(lod).unwrap().build_render_lod(render, &full_vertex_format, &full_vertex_format_str, self.geometry_type)?;
+            Rc::get_mut(lod).unwrap().build_render_lod(render, &vertex_format, &vertex_format_str, self.geometry_type)?;
         }
 
         Ok(())
@@ -98,4 +115,5 @@ impl Mesh{
     pub fn adapt_vertex_format(in_fvf:&String) -> Result<String,Error> {
         Ok( in_fvf.clone() )
     }
+*/
 }

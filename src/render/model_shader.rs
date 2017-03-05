@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 
 use Error;
+use Window;
 
 #[derive(Copy,Clone)]
 enum Dimension{
@@ -12,33 +13,29 @@ enum Dimension{
     V3D,
 }
 
-pub struct Program{
+pub struct ModelShader{
     pub glium_program:glium::Program,
 }
 
-impl Program{
-    fn generate_program(display:&glium::backend::glutin_backend::GlutinFacade, dimension:Dimension, is_normal:bool, is_tex_coords:bool) -> Result<(String,Program),Error>{
-        let full_vertex_format=Self::generate_full_vertex_format(dimension,is_normal,is_tex_coords);
+impl ModelShader{
+    fn generate(window:&Window, dimension:Dimension, is_normal:bool, is_tex_coords:bool) -> Result<(String,Self),Error>{
+        let vertex_format=Self::generate_vertex_format(dimension,is_normal,is_tex_coords);
         let vertex_code=Self::generate_vertex_code(dimension,is_normal,is_tex_coords);
         let fragment_code=Self::generate_fragment_code(dimension,is_normal,is_tex_coords);
 
-        let glium_program=glium::Program::from_source(display,vertex_code.as_str(),fragment_code.as_str(),None)?;
+        let glium_program=glium::Program::from_source(&window.display,vertex_code.as_str(),fragment_code.as_str(),None)?;
 
-        Ok(
-            (
-                full_vertex_format,
-                Program{
-                    glium_program:glium_program,
-                }
-            )
-        )
+        let shader=ModelShader{
+            glium_program:glium_program,
+        };
+
+        Ok( (vertex_format,shader) )
     }
 
-    fn generate_full_vertex_format(dimension:Dimension, is_normal:bool, is_tex_coords:bool) -> String{
-        /*
-        let mut full_vertex_format=String::with_capacity(32);
+    fn generate_vertex_format(dimension:Dimension, is_normal:bool, is_tex_coords:bool) -> String{
+        let mut vertex_format=String::with_capacity(32);
 
-        full_vertex_format.push_str(
+        vertex_format.push_str(
             match dimension {
                 Dimension::V2D => "VERTEX:(X:f32,Y:f32)",
                 Dimension::V3D => "VERTEX:(X:f32,Y:f32,Z:f32)",
@@ -46,7 +43,7 @@ impl Program{
         );
 
         if is_normal {
-            full_vertex_format.push_str(
+            vertex_format.push_str(
                 match dimension {
                     Dimension::V2D => " NORMAL:(X:f32,Y:f32)",
                     Dimension::V3D => " NORMAL:(X:f32,Y:f32,Z:f32)",
@@ -55,35 +52,10 @@ impl Program{
         }
 
         if is_tex_coords {
-            full_vertex_format.push_str( " TEXCOORD:(U:f32,V:f32)" );
+            vertex_format.push_str( " TEXCOORD:(U:f32,V:f32)" );
         }
 
-        full_vertex_format
-        */
-
-        let mut full_vertex_format=String::with_capacity(32);
-
-        full_vertex_format.push_str(
-            match dimension {
-                Dimension::V2D => "VERTEX:(X:float,Y:float)",
-                Dimension::V3D => "VERTEX:(X:float,Y:float,Z:float)",
-            }
-        );
-
-        if is_normal {
-            full_vertex_format.push_str(
-                match dimension {
-                    Dimension::V2D => " NORMAL(X:f32,Y:f32)",
-                    Dimension::V3D => " NORMAL(X:f32,Y:f32,Z:f32)",
-                }
-            );
-        }
-
-        if is_tex_coords {
-            full_vertex_format.push_str( " TEXCOORD(U:f32,V:f32)" );
-        }
-
-        full_vertex_format
+        vertex_format
     }
 
     fn generate_vertex_code(dimension:Dimension, is_normal:bool, is_tex_coords:bool) -> String{
@@ -232,21 +204,19 @@ void main() {"
         fragment_code
     }
 
-
-
-    pub fn generate_programs(display:&glium::backend::glutin_backend::GlutinFacade) -> Result< HashMap<String,Rc<Program>> ,Error>{
-        let mut programs=HashMap::new();
+    pub fn generate_model_shaders(window:&Window) -> Result< HashMap<String,Rc<Self>> ,Error>{
+        let mut shaders=HashMap::new();
 
         for dimension in [Dimension::V2D,Dimension::V3D].into_iter(){
             for is_normal in [false,true].into_iter(){
                 for is_tex_coords in [false,true].into_iter(){
-                    let (full_vertex_format, program)=Program::generate_program(display, *dimension, *is_normal, *is_tex_coords)?;
+                    let (vertex_format, shader)=ModelShader::generate(window, *dimension, *is_normal, *is_tex_coords)?;
 
-                    programs.insert(full_vertex_format, Rc::new(program) );
+                    shaders.insert(vertex_format, Rc::new(shader) );
                 }
             }
         }
 
-        Ok( programs )
+        Ok( shaders )
     }
 }

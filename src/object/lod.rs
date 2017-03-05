@@ -4,28 +4,36 @@ use pz5_collada;
 use glium;
 use render;
 
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::{Mutex,RwLock};
+
 use pz5_collada::from_collada::FromColladaLOD;
-use render::LODTrait;
+use pz5::vertex_format::VertexFormat;
 
 use Error;
-use Render;
+use Object;
+
 use super::Geometry;
-use ObjectFrame;
+//use ObjectFrame;
 
-pub struct LOD{
-    key_distance:f32,
-
-    pub id:usize,
+pub struct LODAttrib{
     pub distance:f32,
-    pub geometry:Geometry,
     pub vertices_count:usize,
     pub description:String,
 
     pub include:bool,
     pub display:bool,
+}
 
-    render_lod:Option<Box<LODTrait>>,
+pub struct LOD{
+    pub id:usize,
+    pub vertices_count:usize,
+    pub geometry:Geometry,
+
+    pub mesh:Mutex< Option<usize> >,
+    pub render_lod:Mutex< Option<usize> >,
+
+    pub attrib:RwLock< LODAttrib >,
 }
 
 impl FromColladaLOD for LOD{
@@ -35,34 +43,39 @@ impl FromColladaLOD for LOD{
 impl LOD{
     pub fn new(
         distance:f32,
-        id:usize,
         geometry:Geometry,
         vertices_count:usize,
         description:String,
-        display:bool,
-    ) -> Result<Self,Error> {
-        let key_distance=distance.clone();
 
-        let mut lod=LOD{
-            key_distance:key_distance,
-
-            id:id,
-            distance:distance,
-            geometry:geometry,
+        object:&Object
+    ) -> Result< Arc<Self> ,Error > {
+        let lod=LOD{
+            id:0,
             vertices_count:vertices_count,
-            description:description,
+            geometry:geometry,
 
-            include:true,
-            display:display,
+            mesh:Mutex::new( None ),
+            render_lod:Mutex::new( None ),
 
-            render_lod:None,
+            attrib:RwLock::new(
+                LODAttrib{
+                    distance:distance,
+                    vertices_count:vertices_count,
+                    description:description,
+
+                    include:true,
+                    display:object.is_gui,
+                }
+            ),
         };
 
-        Ok(lod)
+        object.add_lod( lod )
     }
 
-    pub fn build_render_lod(&mut self, render:&Render, fvf:&pz5::VertexFormat, fvf_str:&String, geometry_type:pz5::GeometryType) -> Result<(),Error> {
-        let render_lod=self.geometry.build_render_lod(render, fvf, fvf_str, geometry_type)?;
+    /*
+
+    pub fn build_render_lod(&mut self, render:&Render, vf:&VertexFormat, vf_str:&String, geometry_type:pz5::GeometryType) -> Result<(),Error> {
+        let render_lod=self.geometry.build_render_lod(render, vf, vf_str, geometry_type)?;
 
         self.render_lod=Some(render_lod);
 
@@ -79,5 +92,6 @@ impl LOD{
             None => Ok(())
         }
     }
+    */
 
 }

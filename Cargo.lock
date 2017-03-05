@@ -468,6 +468,7 @@ name = "pz5"
 version = "0.1.0"
 dependencies = [
  "config 0.1.0",
+ "lexer 0.1.0",
  "rustc-serialize 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
