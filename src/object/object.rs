@@ -7,8 +7,11 @@ use std::sync::{Mutex,RwLock};
 use std::path::Path;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::sync::mpsc;
 
 use Error;
+use RenderSender;
+use GrowableSlab;
 
 use super::LOD;
 use super::Mesh;
@@ -18,9 +21,9 @@ use super::Model;
 
 pub struct Object{
     pub models: RwLock< HashMap<String, Arc<Model> > >,
-    pub list_lods: RwLock< Vec<Option<Arc<LOD>>> >,
-    pub list_meshes: RwLock< Vec<Option<Arc<Mesh>>> >,
-    pub list_models: RwLock< Vec<Option<Arc<Model>>> >,
+    pub slab_lods: GrowableSlab<LOD>,
+    pub slab_meshes: GrowableSlab<Mesh>,
+    pub slab_models: GrowableSlab<Model>,
     pub is_gui: bool,
 }
 
@@ -28,48 +31,33 @@ impl Object{
     pub fn empty(is_gui:bool) -> Self{
         Object{
             models: RwLock::new( HashMap::new() ),
-            list_lods: RwLock::new( Vec::new() ),
-            list_meshes: RwLock::new( Vec::new() ),
-            list_models: RwLock::new( Vec::new() ),
+            slab_lods: GrowableSlab::with_capacity(60),
+            slab_meshes: GrowableSlab::with_capacity(30),
+            slab_models: GrowableSlab::with_capacity(2),
             is_gui: is_gui,
         }
     }
 
 
-    pub fn include_collada_model(&self, file_name:&Path) -> Result<(),Error> {
-        Model::load_from_collada(file_name,self)
+    pub fn include_collada_model(&self, file_name:&Path, to_render_tx:&RenderSender) -> Result<(),Error> {
+        Model::load_from_collada(file_name,self,to_render_tx)
     }
 
 
-    pub fn add_lod_to_list(&self,mut lod:LOD) -> Result< Arc<LOD>, Error >{
-        let mut list_lods_guard=self.list_lods.write().unwrap();
-
-        lod.id=list_lods_guard.len();
-        let ref_lod=Arc::new( lod );
-
-        list_lods_guard.push(Some(ref_lod.clone()));
+    pub fn add_lod_to_list(&self,lod:LOD) -> Result< Arc<LOD>, Error >{
+        let ref_lod=self.slab_lods.insert(lod);
 
         Ok(ref_lod)
     }
 
     pub fn add_mesh_to_list(&self,mut mesh:Mesh) -> Result< Arc<Mesh>, Error >{
-        let mut list_meshes_guard=self.list_meshes.write().unwrap();
-
-        mesh.id=list_meshes_guard.len();
-        let ref_mesh=Arc::new( mesh );
-
-        list_meshes_guard.push(Some(ref_mesh.clone()));
+        let ref_mesh=self.slab_meshes.insert(mesh);
 
         Ok(ref_mesh)
     }
 
     pub fn add_model_to_list(&self,mut model:Model) -> Result< Arc<Model>, Error >{
-        let mut list_models_guard=self.list_models.write().unwrap();
-
-        model.id=list_models_guard.len();
-        let ref_model=Arc::new( model );
-
-        list_models_guard.push(Some(ref_model.clone()));
+        let ref_model=self.slab_models.insert(model);
 
         Ok(ref_model)
     }

@@ -11,7 +11,9 @@ use pz5_collada::from_collada::FromColladaLOD;
 use pz5::vertex_format::VertexFormat;
 
 use Error;
+use ID;
 use Object;
+use SlabElement;
 
 use super::Geometry;
 //use ObjectFrame;
@@ -26,12 +28,13 @@ pub struct LODAttrib{
 }
 
 pub struct LOD{
-    pub id:usize,
+    pub id:ID,
     pub vertices_count:usize,
     pub geometry:Geometry,
+    pub vertex_format:String,
 
-    pub mesh:Mutex< Option<usize> >,
-    pub render_lod:Mutex< Option<usize> >,
+    pub mesh:Mutex< Option<ID> >,
+    pub render_lod:Mutex< Option<ID> >,
 
     pub attrib:RwLock< LODAttrib >,
 }
@@ -41,9 +44,20 @@ impl FromColladaLOD for LOD{
     type Container=Arc<Self>;
 }
 
+impl SlabElement for LOD{
+    fn set_id(&mut self,id:ID) {
+        self.id=id;
+    }
+
+    fn get_id(&self) -> ID {
+        self.id
+    }
+}
+
 impl LOD{
     pub fn new(
         distance:f32,
+        vertex_format:String,
         geometry:Geometry,
         vertices_count:usize,
         description:String,
@@ -51,9 +65,10 @@ impl LOD{
         object:&Object
     ) -> Result< Arc<Self> ,Error > {
         let lod=LOD{
-            id:0,
+            id:ID::zeroed(),
             vertices_count:vertices_count,
             geometry:geometry,
+            vertex_format:vertex_format,
 
             mesh:Mutex::new( None ),
             render_lod:Mutex::new( None ),

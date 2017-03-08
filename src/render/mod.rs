@@ -1,6 +1,8 @@
 use std;
 
-use std::sync::{Arc,RwLock};
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::sync::mpsc;
 
 pub mod vertex;
 /*
@@ -22,10 +24,16 @@ pub mod model_shader;
 pub use self::model_shader::ModelShader;
 
 pub mod render;
-pub use self::render::{RenderData,RenderTask,render_thread};
+pub use self::render::{Render,RenderTask};
+
+
+pub type RenderSender=mpsc::Sender<RenderTask>;
 
 pub mod error;
 pub use self::error::RenderError;
+
+pub mod frame;
+pub use self::frame::RenderFrame;
 /*
 pub mod frame;
 pub use self::frame::ObjectFrame;

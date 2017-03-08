@@ -12,6 +12,7 @@ pub enum Error{
     ProgramCreationError(Box<glium::program::ProgramCreationError>),
     ProgramChooserCreationError(Box<glium::program::ProgramChooserCreationError>),
     BufferCreationError(Box<glium::vertex::BufferCreationError>),
+    VertexFormatParseError(String),
     NoShaderProgram(String),
 }
 
@@ -45,6 +46,12 @@ impl From<glium::vertex::BufferCreationError> for Error {
     }
 }
 
+impl<'a> From<pz5::vertex_format::Error<'a>> for Error {
+    fn from(vertex_format_parse_error: pz5::vertex_format::Error) -> Self{
+        Error::VertexFormatParseError( format!("{}",vertex_format_parse_error) )
+    }
+}
+
 
 
 
@@ -58,6 +65,7 @@ impl std::fmt::Display for Error{
             Error::ProgramCreationError(ref e) => write!(f, "Can not create shader program. Error:{}", e),
             Error::ProgramChooserCreationError(ref e) => write!(f, "Can not choose shader program. Error:{}", e),
             Error::NoShaderProgram(ref full_vertex_format) => write!(f, "No shader program for \"{}\"", full_vertex_format),
+            Error::VertexFormatParseError(ref vertex_format) => write!(f, "{}",vertex_format),
             Error::BufferCreationError(ref e) => write!(f, "Can not create buffer:{}", e),
             //Error::Pz5DocumentWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Pz5BinaryDataWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),

@@ -1,6 +1,7 @@
 use std;
 use cgmath;
 use cgmath::{Rad, PerspectiveFov,Matrix4};
+use cgmath::rad;
 
 use Window;
 
@@ -19,9 +20,9 @@ impl Viewport{
         let aspect_ratio=width as f32 / height as f32;
 
         let perspective=PerspectiveFov{
-            fovy:Rad::new(3.141592 / 2.0),
+            fovy:rad(0.5),
             aspect:aspect_ratio,
-            near:0.1,
+            near:0.001,
             far:1000.0,
         };
 

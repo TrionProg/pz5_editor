@@ -6,8 +6,16 @@ extern crate glium;
 extern crate glutin;
 extern crate cgmath;
 
+pub mod support;
+
 use std::env;
 use std::io::Write;
+
+pub mod id;
+pub use id::ID;
+
+pub mod growable_slab;
+pub use growable_slab::{GrowableSlab,SlabElement};
 
 pub mod error;
 pub use error::Error;
@@ -31,9 +39,10 @@ pub mod state;
 pub use state::State;
 
 pub mod render;
-pub use render::RenderError;
+pub use render::{Render,RenderError,RenderTask,RenderSender};
 
 pub mod process;
+pub use process::{Process,ProcessTask,ProcessSender};
 
 pub mod application;
 pub use application::Application;

@@ -13,7 +13,11 @@ use pz5::vertex_format::VertexFormat;
 use pz5::GeometryType;
 
 use Error;
+use ID;
 use Object;
+use RenderSender;
+use RenderTask;
+use SlabElement;
 
 use super::LOD;
 //use ObjectFrame;
@@ -29,11 +33,11 @@ pub struct MeshAttrib{
 }
 
 pub struct Mesh{
-    pub id:usize,
+    pub id:ID,
     pub vertex_format:String,
     pub geometry_type:GeometryType,
 
-    pub model:Mutex< Option<usize> >,
+    pub model:Mutex< Option<ID> >,
     pub lods:RwLock< Vec<Arc<LOD>> >,
 
     pub attrib:RwLock< MeshAttrib >,
@@ -43,6 +47,16 @@ impl FromColladaMesh for Mesh{
     type LOD=LOD;
     type Error=Error;
     type Container=Arc<Self>;
+}
+
+impl SlabElement for Mesh{
+    fn set_id(&mut self,id:ID) {
+        self.id=id;
+    }
+
+    fn get_id(&self) -> ID {
+        self.id
+    }
 }
 
 impl Mesh{
@@ -55,7 +69,7 @@ impl Mesh{
         object:&Object
     ) -> Result< Arc<Self>, Error >{
         let mesh=Mesh{
-            id:0,
+            id:ID::zeroed(),
             vertex_format:vertex_format.clone(),
             geometry_type:geometry_type.clone(),
 
@@ -78,26 +92,74 @@ impl Mesh{
         object.add_mesh_to_list( mesh )
     }
 
-    pub fn add_lod(&self, lod:Arc<LOD>){
-        {
-            let mut lod_mesh=lod.mesh.lock().unwrap();
-
-            if *lod_mesh!=None {
-                //выписать lod
-            }
-            *lod_mesh=Some(self.id); //Can take Weak by arc in object.meshes
-        }
+    pub fn add_lod(&self, lod:Arc<LOD>, to_render_tx:&RenderSender) -> Result<(),Error>{
+        *lod.mesh.lock().unwrap()=Some(self.id);
 
         let mut lods_guard=self.lods.write().unwrap();
 
-        lods_guard.push(lod);
+        lods_guard.push(lod.clone());
         lods_guard.sort_by(|lod1,lod2| {
             let dist1=lod1.attrib.read().unwrap().distance;
             let dist2=lod2.attrib.read().unwrap().distance;
 
             dist1.partial_cmp(&dist2).unwrap()
         });
+
+        let to_vertex_format=self.attrib.read().unwrap().vertex_format.clone();
+        let to_geometry_type=self.attrib.read().unwrap().geometry_type;
+
+        let pz5_geometry=lod.geometry.build_render_lod(&lod.vertex_format, &to_vertex_format, self.geometry_type, to_geometry_type)?;
+
+        to_render_tx.send( RenderTask::LoadLOD(lod,pz5_geometry) );
+
+        Ok(())
     }
+
+    pub fn remove_lod(&self, lod:&Arc<LOD>, to_render_tx:&RenderSender){
+        *lod.mesh.lock().unwrap()=None;
+
+        if lod.render_lod.lock().unwrap().is_some() {
+            to_render_tx.send( RenderTask::RemoveLOD(lod.clone()) );
+        }
+
+        let mut lods_guard=self.lods.write().unwrap();
+
+        let index={
+            let mut index=0;
+
+            for (i,l) in lods_guard.iter().enumerate(){
+                if l.id==lod.id {//this lod
+                    index=i;
+                    break;
+                }
+            }
+
+            index
+        };
+
+        lods_guard.remove(index);
+    }
+
+    //rebuild on vf change
+
+    /*
+
+    pub fn build_render_lods(&self, to_render_tx:&RenderSender) -> Result<(),Error> {
+        let vertex_format=self.adapt_vertex_format()?;
+
+        let lods_guard=self.lods.read().unwrap();
+
+        for lod in lods_guard.iter(){
+            lod.build_render_lod(&self,to_render_tx);
+        }
+    }
+    */
+
+    pub fn adapt_vertex_format(&self) -> Result<String,Error> {
+        Ok( self.vertex_format.clone() )
+    }
+
+
 /*
 
     pub fn build_render_lods(&mut self, render:&Render) -> Result<(),Error> {

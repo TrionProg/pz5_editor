@@ -17,7 +17,7 @@ impl CameraState {
     pub fn new() -> CameraState {
         CameraState {
             aspect_ratio: 1024.0 / 768.0,
-            position: (0.1, 0.1, 0.15),
+            position: (0.0, 0.0, 1.0),
             direction: (0.0, 0.0, -1.0),
             moving_up: false,
             moving_left: false,

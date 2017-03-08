@@ -15,7 +15,10 @@ use std::collections::hash_map::Entry;
 use std::path::Path;
 
 use Error;
+use ID;
 use Object;
+use RenderSender;
+use SlabElement;
 //use ObjectFrame;
 
 use super::LOD;
@@ -31,7 +34,7 @@ pub struct ModelAttrib{
 }
 
 pub struct Model{
-    pub id:usize,
+    pub id:ID,
 
     pub meshes: RwLock< HashMap<String, Arc<Mesh>> >,
 
@@ -44,6 +47,16 @@ impl FromColladaModel for Model{
     type Container=Arc<Self>;
 }
 
+impl SlabElement for Model{
+    fn set_id(&mut self,id:ID) {
+        self.id=id;
+    }
+
+    fn get_id(&self) -> ID {
+        self.id
+    }
+}
+
 impl Model{
     pub fn new(
         name:String,
@@ -52,7 +65,7 @@ impl Model{
         object:&Object
     ) -> Result< Arc<Self>, Error >{
         let model=Model{
-            id:0,
+            id:ID::zeroed(),
 
             meshes:RwLock::new( HashMap::new() ),
 
@@ -101,6 +114,8 @@ impl Model{
         }
     }
 
+    //remove_mesh
+
     pub fn get_model_name(file_name:&Path) -> Result<String,Error>{
         let model_name=match file_name.file_name() {
             Some( file_name_os_str ) => {
@@ -115,7 +130,7 @@ impl Model{
         Ok(model_name)
     }
 
-    pub fn load_from_collada(file_name:&Path, object:&Object) -> Result<(),Error>{
+    pub fn load_from_collada(file_name:&Path, object:&Object, to_render_tx:&RenderSender) -> Result<(),Error>{
         let model_name=Self::get_model_name(file_name)?;
 
         let model=Model::build(file_name,|document, virtual_meshes|{
@@ -141,6 +156,7 @@ impl Model{
                         let lod=LOD::build(virtual_lod,|virtual_lod,geometry|{
                             let lod=LOD::new(
                                 virtual_lod.distance,
+                                virtual_mesh.vertex_format.clone(),
                                 Geometry::ColladaGeometry(geometry),
                                 virtual_lod.vertices_count,
                                 String::new(),
@@ -151,7 +167,7 @@ impl Model{
                             Ok(lod)
                         })?;
 
-                        mesh.add_lod(lod);
+                        mesh.add_lod(lod,to_render_tx)?;
                     }
 
                     Ok(mesh)
