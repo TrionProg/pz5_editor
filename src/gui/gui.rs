@@ -5,7 +5,7 @@ use glutin;
 use glutin::ElementState;
 use glutin::MouseButton;
 
-use Error;
+use RenderError;
 use Window;
 use super::Input;
 
@@ -14,7 +14,7 @@ pub struct GUI{
 }
 
 impl GUI{
-    pub fn new(window:&Window) -> Result<Self,Error> {
+    pub fn new(window:&Window) -> Result<Self,RenderError> {
         let gui=GUI{
             input:Input::new(),
         };

@@ -9,9 +9,11 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::mpsc;
 
-use Error;
+use object_pool::multithreaded_growable::Pool as MTPool;
+use object_pool::multithreaded_growable::{ID,Slot};
+
+use ProcessError;
 use RenderSender;
-use GrowableSlab;
 
 use super::LOD;
 use super::Mesh;
@@ -21,9 +23,9 @@ use super::Model;
 
 pub struct Object{
     pub models: RwLock< HashMap<String, Arc<Model> > >,
-    pub slab_lods: GrowableSlab<LOD>,
-    pub slab_meshes: GrowableSlab<Mesh>,
-    pub slab_models: GrowableSlab<Model>,
+    pub pool_lods: MTPool<LOD>,
+    pub pool_meshes: MTPool<Mesh>,
+    pub pool_models: MTPool<Model>,
     pub is_gui: bool,
 }
 
@@ -31,33 +33,33 @@ impl Object{
     pub fn empty(is_gui:bool) -> Self{
         Object{
             models: RwLock::new( HashMap::new() ),
-            slab_lods: GrowableSlab::with_capacity(60),
-            slab_meshes: GrowableSlab::with_capacity(30),
-            slab_models: GrowableSlab::with_capacity(2),
+            pool_lods: MTPool::new(),
+            pool_meshes: MTPool::new(),
+            pool_models: MTPool::new(),
             is_gui: is_gui,
         }
     }
 
 
-    pub fn include_collada_model(&self, file_name:&Path, to_render_tx:&RenderSender) -> Result<(),Error> {
+    pub fn include_collada_model(&self, file_name:&Path, to_render_tx:&RenderSender) -> Result<(),ProcessError> {
         Model::load_from_collada(file_name,self,to_render_tx)
     }
 
 
-    pub fn add_lod_to_list(&self,lod:LOD) -> Result< Arc<LOD>, Error >{
-        let ref_lod=self.slab_lods.insert(lod);
+    pub fn add_lod_to_pool(&self,lod:LOD) -> Result< Arc<LOD>, ProcessError >{
+        let ref_lod=self.pool_lods.insert(lod);
 
         Ok(ref_lod)
     }
 
-    pub fn add_mesh_to_list(&self,mut mesh:Mesh) -> Result< Arc<Mesh>, Error >{
-        let ref_mesh=self.slab_meshes.insert(mesh);
+    pub fn add_mesh_to_pool(&self,mut mesh:Mesh) -> Result< Arc<Mesh>, ProcessError >{
+        let ref_mesh=self.pool_meshes.insert(mesh);
 
         Ok(ref_mesh)
     }
 
-    pub fn add_model_to_list(&self,mut model:Model) -> Result< Arc<Model>, Error >{
-        let ref_model=self.slab_models.insert(model);
+    pub fn add_model_to_pool(&self,mut model:Model) -> Result< Arc<Model>, ProcessError >{
+        let ref_model=self.pool_models.insert(model);
 
         Ok(ref_model)
     }
@@ -85,7 +87,7 @@ impl Object{
     }
     /*
 
-    pub fn include_collada_model(&mut self, file_name:&Path) -> Result<(),Error> {
+    pub fn include_collada_model(&mut self, file_name:&Path) -> Result<(),ProcessError> {
         let model=Model::include_collada_model(file_name, self.model_id, &self.render)?;
 
         self.models.insert(self.model_id, Rc::new(model));
@@ -94,7 +96,7 @@ impl Object{
         Ok(())
     }
 
-    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawError>{
+    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawProcessError>{
         for (_,model) in self.models.iter(){
             model.render(frame)?;
         }

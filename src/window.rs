@@ -4,7 +4,7 @@ use glutin;
 
 use std::sync::Mutex;
 
-use Error;
+use RenderError;
 
 pub struct Window{
     pub display:glium::backend::glutin_backend::GlutinFacade,
@@ -13,7 +13,7 @@ pub struct Window{
 }
 
 impl Window{
-    pub fn new(width:u32, height:u32) -> Result<Self,Error> {
+    pub fn new(width:u32, height:u32) -> Result<Self,RenderError> {
         use glium::DisplayBuild;
 
         let display=glutin::WindowBuilder::new()

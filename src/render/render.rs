@@ -11,7 +11,6 @@ use std::thread;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use Error;
 use RenderError;
 use Window;
 use Storage;
@@ -52,11 +51,32 @@ impl Render {
         state:Arc<State>,
         to_process_tx:mpsc::Sender<ProcessTask>,
         to_render_rx:mpsc::Receiver<RenderTask>
-    ) -> Result<(),Error> {
+    ) {
+        match Self::thread_function(
+            object,
+            state.clone(),
+            to_process_tx,
+            to_render_rx,
+        ) {
+            Ok ( _ ) => {},
+            Err( e ) => {
+                use std::io::Write;
+                writeln!(&mut std::io::stderr(), "Render Error: {}!", e);
+            }
+        }
+
+        state.exit();
+    }
+
+    fn thread_function(
+        object:Arc<RwLock< Option<Object> >>,
+        state:Arc<State>,
+        to_process_tx:mpsc::Sender<ProcessTask>,
+        to_render_rx:mpsc::Receiver<RenderTask>
+    ) -> Result<(),RenderError> {
         let mut window=Window::new(1024, 768)?;
         let mut storage=Storage::new(&window)?;
         let mut gui=GUI::new(&window)?;
-
         let mut camera=Camera::new(&window)?;
 
         let mut render=Render{
@@ -69,12 +89,13 @@ impl Render {
             to_process_tx:to_process_tx,
         };
 
-        render.render_loop(&to_render_rx);
+        let loop_result=render.render_loop(&to_render_rx);
 
         render.state.exit();
+
         //clear
 
-        Ok(())
+        loop_result
     }
 
     fn render_loop(&mut self, to_render_rx:&mpsc::Receiver<RenderTask>) -> Result<(),RenderError>{
@@ -162,6 +183,8 @@ impl Render {
                         self.on_mouse_move(x,y),
                     WindowEvent::MouseInput(state,mouse_button) =>
                         self.on_mouse_input(state,mouse_button),
+                    WindowEvent::MouseWheel(delta,_) =>
+                        self.on_mouse_wheel(delta),
                     WindowEvent::DroppedFile(path) =>
                         {self.to_process_tx.send( ProcessTask::LoadModel(path.into_os_string()) );},//TODO:process error(return Err)
                     _ => {},
@@ -171,18 +194,16 @@ impl Render {
             if Instant::now()>next_frame_time {
                 match RenderFrame::new(&self.camera, &self.window) {
                     Some( mut frame ) => {
-                        camera.update();
-                        use cgmath;
+                        use glium::Surface;
 
-                        //let perspective_matrix=cgmath::perspective(cgmath::deg(45.0), 1.333, 0.0001, 100.0);
-/*
-                        let perspective_matrix: cgmath::Matrix4<f32> = cgmath::perspective(cgmath::deg(45.0), 1.333, 0.0001, 100.0);
-    let view_eye: cgmath::Point3<f32> = cgmath::Point3::new(0.0, 2.0, -2.0);
-    let view_center: cgmath::Point3<f32> = cgmath::Point3::new(0.0, 0.0, 0.0);
-    let view_up: cgmath::Vector3<f32> = cgmath::Vector3::new(0.0, 1.0, 0.0);
-    let view_matrix: cgmath::Matrix4<f32> = cgmath::Matrix4::look_at(view_eye, view_center, view_up);
-    */
-    //let model_matrix: cgmath::Matrix4<f32> = cgmath::Matrix4::identity();
+                        let uniforms = uniform! {
+                            perspective_matrix: Into::<[[f32; 4]; 4]>::into(frame.perspective_matrix),
+                            camera_matrix: Into::<[[f32; 4]; 4]>::into(frame.camera_matrix),
+                        };
+
+                        frame.target.draw(&self.storage.grid.vbo,
+                            &glium::index::NoIndices(glium::index::PrimitiveType::LinesList),
+                            &self.storage.grid_shader.glium_program, &uniforms, &frame.draw_parameters).unwrap();
 
                         let uniforms = uniform! {
                             //persp_matrix:Into::<[[f32; 4]; 4]>::into(perspective_matrix),
@@ -193,8 +214,6 @@ impl Render {
                             //view_matrix: Into::<[[f32; 4]; 4]>::into(view_matrix),//camera.get_view(),
                             //view_matrix: Into::<[[f32; 4]; 4]>::into(frame.camera_matrix),
                         };
-
-                        use glium::Surface;
 
                         frame.target.draw(&vertex_buffer,
                                     &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
@@ -230,6 +249,10 @@ impl Render {
 
     fn on_mouse_input(&mut self, state:ElementState, mouse_button:glutin::MouseButton) {
         self.gui.on_mouse_button(state, mouse_button);
+    }
+
+    fn on_mouse_wheel(&mut self,delta:glutin::MouseScrollDelta) {
+        self.camera.on_mouse_wheel(&mut self.storage, &self.window, delta);
     }
 
     fn render(&mut self) {

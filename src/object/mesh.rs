@@ -12,12 +12,12 @@ use std::collections::HashMap;
 use pz5::vertex_format::VertexFormat;
 use pz5::GeometryType;
 
-use Error;
-use ID;
+use object_pool::multithreaded_growable::{ID,Slot};
+
+use ProcessError;
 use Object;
 use RenderSender;
 use RenderTask;
-use SlabElement;
 
 use super::LOD;
 //use ObjectFrame;
@@ -45,11 +45,11 @@ pub struct Mesh{
 
 impl FromColladaMesh for Mesh{
     type LOD=LOD;
-    type Error=Error;
+    type Error=ProcessError;
     type Container=Arc<Self>;
 }
 
-impl SlabElement for Mesh{
+impl Slot for Mesh{
     fn set_id(&mut self,id:ID) {
         self.id=id;
     }
@@ -67,7 +67,7 @@ impl Mesh{
         description:String,
 
         object:&Object
-    ) -> Result< Arc<Self>, Error >{
+    ) -> Result< Arc<Self>, ProcessError >{
         let mesh=Mesh{
             id:ID::zeroed(),
             vertex_format:vertex_format.clone(),
@@ -89,10 +89,10 @@ impl Mesh{
             ),
         };
 
-        object.add_mesh_to_list( mesh )
+        object.add_mesh_to_pool( mesh )
     }
 
-    pub fn add_lod(&self, lod:Arc<LOD>, to_render_tx:&RenderSender) -> Result<(),Error>{
+    pub fn add_lod(&self, lod:Arc<LOD>, to_render_tx:&RenderSender) -> Result<(),ProcessError>{
         *lod.mesh.lock().unwrap()=Some(self.id);
 
         let mut lods_guard=self.lods.write().unwrap();
@@ -144,7 +144,7 @@ impl Mesh{
 
     /*
 
-    pub fn build_render_lods(&self, to_render_tx:&RenderSender) -> Result<(),Error> {
+    pub fn build_render_lods(&self, to_render_tx:&RenderSender) -> Result<(),ProcessError> {
         let vertex_format=self.adapt_vertex_format()?;
 
         let lods_guard=self.lods.read().unwrap();
@@ -155,14 +155,14 @@ impl Mesh{
     }
     */
 
-    pub fn adapt_vertex_format(&self) -> Result<String,Error> {
+    pub fn adapt_vertex_format(&self) -> Result<String,ProcessError> {
         Ok( self.vertex_format.clone() )
     }
 
 
 /*
 
-    pub fn build_render_lods(&mut self, render:&Render) -> Result<(),Error> {
+    pub fn build_render_lods(&mut self, render:&Render) -> Result<(),ProcessError> {
         let vertex_format_str=String::from("VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)");
         let vertex_format=VertexFormat::parse(&vertex_format_str).unwrap();
 
@@ -173,7 +173,7 @@ impl Mesh{
         Ok(())
     }
 
-    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawError>{
+    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawProcessError>{
         if !self.display {
             return Ok(());
         }
@@ -183,7 +183,7 @@ impl Mesh{
         Ok(())
     }
 
-    pub fn adapt_vertex_format(in_fvf:&String) -> Result<String,Error> {
+    pub fn adapt_vertex_format(in_fvf:&String) -> Result<String,ProcessError> {
         Ok( in_fvf.clone() )
     }
 */

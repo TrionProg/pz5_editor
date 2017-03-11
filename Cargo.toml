@@ -10,3 +10,4 @@ collada = { path = "../collada" }
 glium = "*"
 cgmath = "0.9.1"
 glutin = "*"
+object_pool = { path = "../object_pool"}

@@ -20,12 +20,8 @@ pub mod object;
 pub use self::object::Object;
 */
 
-pub mod model_shader;
-pub use self::model_shader::ModelShader;
-
 pub mod render;
 pub use self::render::{Render,RenderTask};
-
 
 pub type RenderSender=mpsc::Sender<RenderTask>;
 

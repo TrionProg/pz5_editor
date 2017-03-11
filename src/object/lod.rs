@@ -10,10 +10,10 @@ use std::sync::{Mutex,RwLock};
 use pz5_collada::from_collada::FromColladaLOD;
 use pz5::vertex_format::VertexFormat;
 
-use Error;
-use ID;
+use object_pool::multithreaded_growable::{ID,Slot};
+
+use ProcessError;
 use Object;
-use SlabElement;
 
 use super::Geometry;
 //use ObjectFrame;
@@ -40,11 +40,11 @@ pub struct LOD{
 }
 
 impl FromColladaLOD for LOD{
-    type Error=Error;
+    type Error=ProcessError;
     type Container=Arc<Self>;
 }
 
-impl SlabElement for LOD{
+impl Slot for LOD{
     fn set_id(&mut self,id:ID) {
         self.id=id;
     }
@@ -63,7 +63,7 @@ impl LOD{
         description:String,
 
         object:&Object
-    ) -> Result< Arc<Self> ,Error > {
+    ) -> Result< Arc<Self> ,ProcessError > {
         let lod=LOD{
             id:ID::zeroed(),
             vertices_count:vertices_count,
@@ -85,12 +85,12 @@ impl LOD{
             ),
         };
 
-        object.add_lod_to_list( lod )
+        object.add_lod_to_pool( lod )
     }
 
     /*
 
-    pub fn build_render_lod(&mut self, render:&Render, vf:&VertexFormat, vf_str:&String, geometry_type:pz5::GeometryType) -> Result<(),Error> {
+    pub fn build_render_lod(&mut self, render:&Render, vf:&VertexFormat, vf_str:&String, geometry_type:pz5::GeometryType) -> Result<(),ProcessError> {
         let render_lod=self.geometry.build_render_lod(render, vf, vf_str, geometry_type)?;
 
         self.render_lod=Some(render_lod);
@@ -98,7 +98,7 @@ impl LOD{
         Ok(())
     }
 
-    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawError>{
+    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawProcessError>{
         if !self.display {
             return Ok(());
         }

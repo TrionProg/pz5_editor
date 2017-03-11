@@ -6,7 +6,7 @@ use render::vertex;
 
 use std::rc::Rc;
 
-use Error;
+use ProcessError;
 //use Render;
 //use render::{LOD,LODTrait};
 use pz5::GeometryType;
@@ -20,7 +20,7 @@ pub enum Geometry{
 
 
 impl Geometry{
-    pub fn build_render_lod(&self, in_vertex_format:&String, out_vertex_format:&String, in_geometry_type:GeometryType, out_geometry_type:GeometryType) -> Result<Pz5Geometry, Error>{
+    pub fn build_render_lod(&self, in_vertex_format:&String, out_vertex_format:&String, in_geometry_type:GeometryType, out_geometry_type:GeometryType) -> Result<Pz5Geometry, ProcessError>{
         //TODO:adapt out_vertex_format
 
         match *self{
@@ -33,7 +33,7 @@ impl Geometry{
                     //"VERTEX:(X:f32,Y:f32)" => LOD::<vertex::VertexP2>::new(render, out_vf_str, pz5_geometry, geometry_type)?,
                     "VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)" => LOD::<vertex::VertexP3N3>::new(render, out_vf_str, pz5_geometry, geometry_type)?,
                     //"VERTEX:(X:float,Y:float)" => LOD::new(render, out_vf_str, pz5_geometry, geometry_type),
-                    _ => return Err( Error::NoShaderProgram(out_vf_str.clone()) ),
+                    _ => return Err( ProcessError::NoShaderProgram(out_vf_str.clone()) ),
                 }
                 */
             },

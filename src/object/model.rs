@@ -14,11 +14,11 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::path::Path;
 
-use Error;
-use ID;
+use object_pool::multithreaded_growable::{ID,Slot};
+
+use ProcessError;
 use Object;
 use RenderSender;
-use SlabElement;
 //use ObjectFrame;
 
 use super::LOD;
@@ -43,11 +43,11 @@ pub struct Model{
 
 impl FromColladaModel for Model{
     type Mesh=Mesh;
-    type Error=Error;
+    type Error=ProcessError;
     type Container=Arc<Self>;
 }
 
-impl SlabElement for Model{
+impl Slot for Model{
     fn set_id(&mut self,id:ID) {
         self.id=id;
     }
@@ -63,7 +63,7 @@ impl Model{
         description:String,
 
         object:&Object
-    ) -> Result< Arc<Self>, Error >{
+    ) -> Result< Arc<Self>, ProcessError >{
         let model=Model{
             id:ID::zeroed(),
 
@@ -80,7 +80,7 @@ impl Model{
             ),
         };
 
-        object.add_model_to_list(model)
+        object.add_model_to_pool(model)
     }
 
     pub fn add_mesh(&self, mesh:Arc<Mesh>){
@@ -116,21 +116,21 @@ impl Model{
 
     //remove_mesh
 
-    pub fn get_model_name(file_name:&Path) -> Result<String,Error>{
+    pub fn get_model_name(file_name:&Path) -> Result<String,ProcessError>{
         let model_name=match file_name.file_name() {
             Some( file_name_os_str ) => {
                 match file_name_os_str.to_str() {
                     Some( file_name_str ) => String::from(file_name_str),//TODO:remove extension
-                    None => return Err( Error::FileNameNotUTF ),
+                    None => return Err( ProcessError::FileNameNotUTF ),
                 }
             },
-            None => return Err( Error::NoFileName ),
+            None => return Err( ProcessError::NoFileName ),
         };
 
         Ok(model_name)
     }
 
-    pub fn load_from_collada(file_name:&Path, object:&Object, to_render_tx:&RenderSender) -> Result<(),Error>{
+    pub fn load_from_collada(file_name:&Path, object:&Object, to_render_tx:&RenderSender) -> Result<(),ProcessError>{
         let model_name=Self::get_model_name(file_name)?;
 
         let model=Model::build(file_name,|document, virtual_meshes|{
@@ -187,7 +187,7 @@ impl Model{
 /*
                 }
 
-    pub fn include_collada_model(file_name:&Path, object:&mut Object>) -> Result<Self,Error> {
+    pub fn include_collada_model(file_name:&Path, object:&mut Object>) -> Result<Self,ProcessError> {
         let model_name=Self::get_model_name(file_name)?;
 
         Model::new(
@@ -249,8 +249,8 @@ impl Model{
                 })?;
 
                 match meshes.entry(mesh.name.clone()){
-                    Entry::Occupied( _ ) => return Err(Self::Error::from(
-                        Error::Other( format!("Mesh \"{}\" already exists",mesh.name) )
+                    Entry::Occupied( _ ) => return Err(Self::ProcessError::from(
+                        ProcessError::Other( format!("Mesh \"{}\" already exists",mesh.name) )
                     )),
                     Entry::Vacant( e ) => {e.insert(Arc::new(mesh));},
                 }
@@ -268,7 +268,7 @@ impl Model{
         Ok(model)
     }
 
-    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawError>{
+    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawProcessError>{
         if !self.display {
             return Ok(());
         }

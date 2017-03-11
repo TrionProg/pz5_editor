@@ -9,16 +9,15 @@ use std::thread::JoinHandle;
 use std::sync::mpsc;
 use std::ffi::OsString;
 
+use ProcessError;
 use Camera;
 use State;
 use Object;
-use render::RenderTask;
+use RenderTask;
 
 pub enum ProcessTask{
     LoadModel(OsString),
 }
-
-pub type ProcessSender=mpsc::Sender<ProcessTask>;
 
 pub struct Process{
     object:Arc<RwLock< Option<Object> >>,
@@ -31,25 +30,48 @@ impl Process{
         object:Arc<RwLock< Option<Object> >>,
         state:Arc<State>,
         to_process_rx:mpsc::Receiver<ProcessTask>,
-        to_render_tx:mpsc::Sender<RenderTask>,
+        to_render_tx:mpsc::Sender<RenderTask>
     ) -> JoinHandle<()> {
         let process_handle=thread::spawn(move||{
-            let mut process=Process{
-                object:object,
-                state:state,
-                to_render_tx:to_render_tx,
-            };
+            match Self::thread_function(
+                object,
+                state.clone(),
+                to_process_rx,
+                to_render_tx,
+            ) {
+                Ok ( _ ) => {},
+                Err( e ) => {
+                    use std::io::Write;
+                    writeln!(&mut std::io::stderr(), "Process Error: {}!", e);
+                }
+            }
 
-            process.process_loop(&to_process_rx);
-
-            process.state.exit();
-            //clear
+            state.exit();
         });
 
         process_handle
     }
 
-    fn process_loop(&mut self,to_process_rx:&mpsc::Receiver<ProcessTask>){
+    fn thread_function(
+        object:Arc<RwLock< Option<Object> >>,
+        state:Arc<State>,
+        to_process_rx:mpsc::Receiver<ProcessTask>,
+        to_render_tx:mpsc::Sender<RenderTask>
+    ) -> Result<(),ProcessError> {
+        let mut process=Process{
+            object:object,
+            state:state,
+            to_render_tx:to_render_tx,
+        };
+
+        let loop_result=process.process_loop(&to_process_rx);
+
+        process.state.exit();
+
+        loop_result
+    }
+
+    fn process_loop(&mut self,to_process_rx:&mpsc::Receiver<ProcessTask>) -> Result<(),ProcessError> {
         while !self.state.should_exit() {
             match to_process_rx.recv(){
                 Ok ( task ) => {
@@ -75,8 +97,10 @@ impl Process{
                         },//data.storage.load_lod
                     }
                 },
-                Err( _ ) => return,
+                Err( _ ) => return Ok(()),
             }
         }
+
+        Ok(())
     }
 }

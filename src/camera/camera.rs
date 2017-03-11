@@ -5,9 +5,11 @@ use cgmath;
 use cgmath::{Vector2,Vector3,Point3,PerspectiveFov,Matrix4,Basis3,Rotation3};
 use cgmath::{vec2,vec3,rad};
 use glutin::ElementState;
+use glutin::MouseScrollDelta;
 
-use Error;
+use RenderError;
 use Window;
+use Storage;
 
 use gui::Input;
 use super::Viewport;
@@ -22,7 +24,7 @@ pub struct Camera{
 }
 
 impl Camera{
-    pub fn new(window:&Window) -> Result<Self,Error>{
+    pub fn new(window:&Window) -> Result<Self,RenderError>{
         use cgmath::SquareMatrix;
 
         let mut camera=Camera{
@@ -54,8 +56,8 @@ impl Camera{
             None => 0.0,
         };
 
-        self.angle.y+=mouse_move_x*3.14*1.5;
-        self.angle.x+=mouse_move_y*3.14;
+        self.angle.y-=mouse_move_x*3.14*1.5;
+        self.angle.x-=mouse_move_y*3.14;
 
         if self.angle.x< -3.14/2.0 {
             self.angle.x=-3.14/2.0;
@@ -66,8 +68,29 @@ impl Camera{
         }
 
         self.calc_matrix();
+    }
 
-        println!("{} {}",self.angle.x, self.angle.y);
+    pub fn on_mouse_wheel(&mut self, storage:&mut Storage, window:&Window, delta:MouseScrollDelta) {
+        let scroll_y=match delta {
+            MouseScrollDelta::LineDelta(x,y) =>
+                y,
+            _ => 0.0,
+        };
+
+        let old_distance=self.distance;
+        let new_distance=if self.distance-scroll_y < 1.0 {
+            1.0
+        }else{
+            self.distance-scroll_y
+        };
+
+        self.distance=new_distance;
+
+        if old_distance.ceil()!=new_distance.ceil() {
+            storage.grid.rebuild(new_distance, &window);
+        }
+
+        self.calc_matrix();
     }
 
     fn calc_matrix(&mut self) {

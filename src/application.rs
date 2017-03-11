@@ -12,7 +12,6 @@ use std::thread;
 use std::thread::JoinHandle;
 
 
-use Error;
 use Window;
 use GUI;
 use Storage;
@@ -26,7 +25,7 @@ use Render;
 pub struct Application{}
 
 impl Application{
-    pub fn run() -> Result<(),Error> {
+    pub fn run() {
         let state=Arc::new(State::new());
         let object=Arc::new(RwLock::new(None));
 
@@ -48,22 +47,5 @@ impl Application{
         );
 
         process_handle.join().unwrap();
-
-        Ok(())
     }
-
-    /*
-    pub fn include_collada_model(&mut self, file_name:&Path) -> Result<(),Error> {
-        if self.object.is_none() {
-            self.object=Some( Object::empty(self.render.clone()) );
-        }
-
-        match self.object {
-            Some( ref mut object ) => {object.include_collada_model(file_name)?;},
-            None => {},
-        }
-
-        Ok(())
-    }
-    */
 }
