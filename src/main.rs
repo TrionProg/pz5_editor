@@ -7,8 +7,6 @@ extern crate glutin;
 extern crate cgmath;
 extern crate object_pool;
 
-pub mod support;
-
 use std::env;
 use std::io::Write;
 
