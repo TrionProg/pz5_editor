@@ -79,11 +79,15 @@ impl Process{
                         ProcessTask::LoadModel(ref file_name) => {
                             let file_name=Path::new(file_name);
 
-                            let mut object=self.object.write().unwrap();
+                            {
+                                let mut object=self.object.write().unwrap();
 
-                            if (*object).is_none() {
-                                *object=Some(Object::empty(true));
+                                if (*object).is_none() {
+                                    *object=Some(Object::empty(true));
+                                }
                             }
+
+                            let mut object=self.object.read().unwrap();
 
                             match *object {
                                 None => {},
@@ -94,7 +98,7 @@ impl Process{
                                     }
                                 },
                             }
-                        },//data.storage.load_lod
+                        },
                     }
                 },
                 Err( _ ) => return Ok(()),

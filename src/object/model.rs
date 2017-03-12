@@ -25,6 +25,9 @@ use super::LOD;
 use super::Mesh;
 use super::Geometry;
 
+use RenderError;
+use RenderFrame;
+
 pub struct ModelAttrib{
     pub name:String,
     pub description: String,
@@ -107,7 +110,7 @@ impl Model{
                 },
                 Entry::Occupied(_) => {
                     cnt+=1;
-                    let name=format!("{}.{}",base_name,cnt);
+                    name=format!("{}.{}",base_name,cnt);
                     mesh.attrib.write().unwrap().name=name.clone();
                 }
             }
@@ -180,6 +183,24 @@ impl Model{
         })?;
 
         object.add_model(model);
+
+        Ok(())
+    }
+
+    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        {
+            let attrib=self.attrib.read().unwrap();
+
+            if !attrib.include || !attrib.display {
+                return Ok(());
+            }
+        }
+
+        let meshes_guard=self.meshes.read().unwrap();
+
+        for (_,mesh) in meshes_guard.iter() {
+            mesh.render(frame)?;
+        }
 
         Ok(())
     }

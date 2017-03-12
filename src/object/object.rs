@@ -14,6 +14,8 @@ use object_pool::multithreaded_growable::{ID,Slot};
 
 use ProcessError;
 use RenderSender;
+use RenderError;
+use RenderFrame;
 
 use super::LOD;
 use super::Mesh;
@@ -79,11 +81,21 @@ impl Object{
                 },
                 Entry::Occupied(_) => {
                     cnt+=1;
-                    let name=format!("{}.{}",base_name,cnt);
+                    name=format!("{}.{}",base_name,cnt);
                     model.attrib.write().unwrap().name=name.clone();
                 }
             }
         }
+    }
+
+    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        let models_guard=self.models.read().unwrap();
+
+        for (_,model) in models_guard.iter() {
+            model.render(frame)?;
+        }
+
+        Ok(())
     }
     /*
 

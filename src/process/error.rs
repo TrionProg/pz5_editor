@@ -2,12 +2,17 @@ use std;
 use pz5;
 use pz5_collada;
 
+use std::sync::mpsc::SendError;
+
+use render::RenderTask;
+
 #[derive(Debug)]
 pub enum ProcessError{
     FileNameNotUTF,
     NoFileName,
     FromColladaError(Box< pz5_collada::from_collada::Error >),
     VertexFormatParseError(String),
+    SendTaskError(Box<SendError<RenderTask>>),
 }
 
 impl From<pz5_collada::from_collada::Error> for ProcessError {
@@ -22,6 +27,12 @@ impl<'a> From<pz5::vertex_format::Error<'a>> for ProcessError {
     }
 }
 
+impl<'a> From<SendError<RenderTask>> for ProcessError {
+    fn from(send_task_error: SendError<RenderTask>) -> Self{
+        ProcessError::SendTaskError( Box::new(send_task_error) )
+    }
+}
+
 
 
 
@@ -32,6 +43,7 @@ impl std::fmt::Display for ProcessError{
             ProcessError::NoFileName => write!(f, "Path to file has no name of file"),
             ProcessError::FromColladaError(ref e) => write!(f, "From collada error:{}", e),
             ProcessError::VertexFormatParseError(ref vertex_format) => write!(f, "{}",vertex_format),
+            ProcessError::SendTaskError(ref e) => write!(f, "Can not send error:{}",e),
             //Error::Pz5DocumentWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Pz5BinaryDataWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Other(ref message) => write!(f, "{}", message),

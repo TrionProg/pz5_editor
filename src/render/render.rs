@@ -4,6 +4,7 @@ use process;
 use object;
 use glutin;
 use glium;
+use object_pool;
 
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -27,12 +28,12 @@ use glutin::Event as WindowEvent;
 use pz5::GeometryType;
 use pz5::Pz5Geometry;
 
-use support;
+use object_pool::growable::ID;
 
 pub enum RenderTask{
     Error(String),
-    LoadLOD(Arc<object::LOD>, Pz5Geometry),
-    RemoveLOD(Arc<object::LOD>),
+    LoadLOD(Arc<object::LOD>, Pz5Geometry, String, GeometryType),
+    RemoveLOD(Arc<object::LOD>,ID),
 }
 
 pub struct Render{
@@ -155,8 +156,6 @@ impl Render {
             }
         ).unwrap();
 
-        let mut camera = support::camera::CameraState::new();
-
         let mut next_frame_time=Instant::now();
 
         while !self.state.should_exit() {
@@ -165,8 +164,9 @@ impl Render {
                     Ok ( task ) => {
                         match task{
                             RenderTask::Error(_) => {},
-                            RenderTask::LoadLOD(lod,geometry) => {},//data.storage.load_lod
-                            RenderTask::RemoveLOD(lod) => {},
+                            RenderTask::LoadLOD(lod,geometry,vertex_format,geometry_type) =>
+                                self.storage.load_geometry(lod, geometry, geometry_type, vertex_format, &self.window)?,
+                            RenderTask::RemoveLOD(lod,geometry_id) => {},
                         }
                     },
                     Err( mpsc::TryRecvError::Empty ) => break,
@@ -182,7 +182,7 @@ impl Render {
                     WindowEvent::MouseMoved(x,y) =>
                         self.on_mouse_move(x,y),
                     WindowEvent::MouseInput(state,mouse_button) =>
-                        self.on_mouse_input(state,mouse_button),
+                        self.on_mouse_button(state,mouse_button),
                     WindowEvent::MouseWheel(delta,_) =>
                         self.on_mouse_wheel(delta),
                     WindowEvent::DroppedFile(path) =>
@@ -192,10 +192,13 @@ impl Render {
             }
 
             if Instant::now()>next_frame_time {
-                match RenderFrame::new(&self.camera, &self.window) {
+                self.render()?;
+                /*
+                match RenderFrame::new(&self.camera, &self.window, &self.storage) {
                     Some( mut frame ) => {
+                        self.storage.grid.render(&mut frame, &self.storage.grid_shader)?;
                         use glium::Surface;
-
+                        /*
                         let uniforms = uniform! {
                             perspective_matrix: Into::<[[f32; 4]; 4]>::into(frame.perspective_matrix),
                             camera_matrix: Into::<[[f32; 4]; 4]>::into(frame.camera_matrix),
@@ -204,7 +207,7 @@ impl Render {
                         frame.target.draw(&self.storage.grid.vbo,
                             &glium::index::NoIndices(glium::index::PrimitiveType::LinesList),
                             &self.storage.grid_shader.glium_program, &uniforms, &frame.draw_parameters).unwrap();
-
+                        */
                         let uniforms = uniform! {
                             //persp_matrix:Into::<[[f32; 4]; 4]>::into(perspective_matrix),
                             persp_matrix: Into::<[[f32; 4]; 4]>::into(frame.perspective_matrix),
@@ -224,6 +227,7 @@ impl Render {
                     None => {},
                 }
                 //self.render();
+                */
 
                 next_frame_time+=Duration::from_millis(20);
             }else{
@@ -247,21 +251,38 @@ impl Render {
         }
     }
 
-    fn on_mouse_input(&mut self, state:ElementState, mouse_button:glutin::MouseButton) {
+    fn on_mouse_button(&mut self, state:ElementState, mouse_button:glutin::MouseButton) {
         self.gui.on_mouse_button(state, mouse_button);
+
+        if self.gui.input.right_mouse_button==ElementState::Pressed {
+            use std::ffi::OsString;
+            let mut file_name=OsString::new();
+            file_name.push("pz5_3.dae");
+            self.to_process_tx.send( ProcessTask::LoadModel(file_name) );
+        }
     }
 
     fn on_mouse_wheel(&mut self,delta:glutin::MouseScrollDelta) {
         self.camera.on_mouse_wheel(&mut self.storage, &self.window, delta);
     }
 
-    fn render(&mut self) {
-        match RenderFrame::new(&self.camera, &self.window) {
-            Some( frame ) => {
+    fn render(&mut self) -> Result<(),RenderError> {
+        match RenderFrame::new(&self.camera, &self.window, &self.storage) {
+            Some( mut frame ) => {
+                self.storage.grid.render(&mut frame, &self.storage.grid_shader)?;
+
+                match *self.object.read().unwrap() {
+                    Some( ref object ) =>
+                        object.render( &mut frame )?,
+                    None => {},
+                }
+
                 frame.finish();
             },
             None => {},
         }
+
+        Ok(())
     }
 }
 

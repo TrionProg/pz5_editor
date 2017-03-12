@@ -16,7 +16,9 @@ use ProcessError;
 use Object;
 
 use super::Geometry;
-//use ObjectFrame;
+
+use RenderError;
+use RenderFrame;
 
 pub struct LODAttrib{
     pub distance:f32,
@@ -34,7 +36,7 @@ pub struct LOD{
     pub vertex_format:String,
 
     pub mesh:Mutex< Option<ID> >,
-    pub render_lod:Mutex< Option<ID> >,
+    pub geometry_id:Mutex< Option<ID> >,
 
     pub attrib:RwLock< LODAttrib >,
 }
@@ -71,7 +73,7 @@ impl LOD{
             vertex_format:vertex_format,
 
             mesh:Mutex::new( None ),
-            render_lod:Mutex::new( None ),
+            geometry_id:Mutex::new( None ),
 
             attrib:RwLock::new(
                 LODAttrib{
@@ -86,6 +88,32 @@ impl LOD{
         };
 
         object.add_lod_to_pool( lod )
+    }
+
+    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        {
+            let attrib=self.attrib.read().unwrap();
+
+            if !attrib.include || !attrib.display {
+                return Ok(());
+            }
+        }
+
+        let mut geometry_id_guard=self.geometry_id.lock().unwrap();
+
+        let geometry_id = match *geometry_id_guard {
+            Some( ref geometry_id ) => *geometry_id,
+            None => return Ok(()),
+        };
+
+        let geometry=match frame.storage.geometries.get(geometry_id) {
+            Some( geometry ) => geometry,
+            None => return Err(RenderError::NoGeometryWithID(geometry_id)),
+        };
+
+        geometry.render(frame)?;
+
+        Ok(())
     }
 
     /*

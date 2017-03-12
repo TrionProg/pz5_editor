@@ -3,14 +3,18 @@ use pz5;
 use pz5_collada;
 use glium;
 
+use object_pool::growable::ID;
+
 #[derive(Debug)]
 pub enum RenderError{
-    NoWindow,
+    //NoWindow,
     GliumCreationError(Box<glium::GliumCreationError<glium::glutin::CreationError>>),
     ProgramCreationError(Box<glium::program::ProgramCreationError>),
     ProgramChooserCreationError(Box<glium::program::ProgramChooserCreationError>),
     BufferCreationError(Box<glium::vertex::BufferCreationError>),
     NoShaderProgram(String),
+    DrawError(Box<glium::DrawError>),
+    NoGeometryWithID(ID),
 }
 
 
@@ -38,16 +42,25 @@ impl From<glium::vertex::BufferCreationError> for RenderError {
     }
 }
 
+impl From<glium::DrawError> for RenderError {
+    fn from(draw_error: glium::DrawError) -> Self{
+        RenderError::DrawError( Box::new(draw_error) )
+    }
+}
+
+
 
 impl std::fmt::Display for RenderError{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self{
-            RenderError::NoWindow => write!(f, "No window"),
+            //RenderError::NoWindow => write!(f, "No window"),
             RenderError::GliumCreationError(ref e) => write!(f, "Can not create window. Error:{}", e),
             RenderError::ProgramCreationError(ref e) => write!(f, "Can not create shader program. Error:{}", e),
             RenderError::ProgramChooserCreationError(ref e) => write!(f, "Can not choose shader program. Error:{}", e),
             RenderError::NoShaderProgram(ref full_vertex_format) => write!(f, "No shader program for \"{}\"", full_vertex_format),
             RenderError::BufferCreationError(ref e) => write!(f, "Can not create buffer:{}", e),
+            RenderError::DrawError(ref e) => write!(f, "Can not draw:{}", e),
+            RenderError::NoGeometryWithID(id) => write!(f, "No geometry with id {}",id),
         }
     }
 }

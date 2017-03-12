@@ -22,6 +22,9 @@ use RenderTask;
 use super::LOD;
 //use ObjectFrame;
 
+use RenderError;
+use RenderFrame;
+
 pub struct MeshAttrib{
     pub name:String,
     pub vertex_format:String,
@@ -104,22 +107,25 @@ impl Mesh{
 
             dist1.partial_cmp(&dist2).unwrap()
         });
-
-        let to_vertex_format=self.attrib.read().unwrap().vertex_format.clone();
+        //TODO:adapt format
+        let to_vertex_format=self.adapt_vertex_format()?;//self.attrib.read().unwrap().vertex_format.clone();
         let to_geometry_type=self.attrib.read().unwrap().geometry_type;
 
         let pz5_geometry=lod.geometry.build_render_lod(&lod.vertex_format, &to_vertex_format, self.geometry_type, to_geometry_type)?;
 
-        to_render_tx.send( RenderTask::LoadLOD(lod,pz5_geometry) );
+
+        to_render_tx.send( RenderTask::LoadLOD(lod,pz5_geometry,to_vertex_format,to_geometry_type) )?;
 
         Ok(())
     }
 
-    pub fn remove_lod(&self, lod:&Arc<LOD>, to_render_tx:&RenderSender){
+    pub fn remove_lod(&self, lod:&Arc<LOD>, to_render_tx:&RenderSender) -> Result<(),ProcessError> {
         *lod.mesh.lock().unwrap()=None;
 
-        if lod.render_lod.lock().unwrap().is_some() {
-            to_render_tx.send( RenderTask::RemoveLOD(lod.clone()) );
+        match *lod.geometry_id.lock().unwrap() {
+            Some( ref geometry_id ) =>
+                to_render_tx.send( RenderTask::RemoveLOD(lod.clone(),*geometry_id) )?,
+            None => {},
         }
 
         let mut lods_guard=self.lods.write().unwrap();
@@ -138,6 +144,30 @@ impl Mesh{
         };
 
         lods_guard.remove(index);
+
+        Ok(())
+    }
+
+    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        {
+            let attrib=self.attrib.read().unwrap();
+
+            if !attrib.include || !attrib.display {
+                return Ok(());
+            }
+        }
+
+        let lods_guard=self.lods.read().unwrap();
+
+        (*lods_guard)[0].render(frame)?;
+
+        /*
+        for lod in lods_guard.iter() {
+            lod.render(&self, frame)?;
+        }
+        */
+
+        Ok(())
     }
 
     //rebuild on vf change
@@ -156,7 +186,8 @@ impl Mesh{
     */
 
     pub fn adapt_vertex_format(&self) -> Result<String,ProcessError> {
-        Ok( self.vertex_format.clone() )
+        //Ok( self.vertex_format.clone() )
+        Ok(String::from("VERTEX:(X:f32,Y:f32,Z:f32)"))
     }
 
 

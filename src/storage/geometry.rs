@@ -1,68 +1,69 @@
-use std;
-use pz5;
-use glium;
-use render;
 
 use std::rc::Rc;
-use glium::VertexBuffer;
+use pz5::Pz5Geometry;
 use pz5::GeometryType;
 use glium::index::PrimitiveType;
-use pz5::Pz5Geometry;
+use object_pool::growable::{ID,Slot};
 
-use Error;
-use Render;
-use ObjectFrame;
+use super::ModelShader;
+use super::{VBO,VBOTrait};
+use super::vertex;
 
-pub trait LODTrait{
-    fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawError>;
+use RenderError;
+use Window;
+
+use RenderFrame;
+
+pub struct Geometry{
+    pub id:ID,
+    vbo:Box<VBOTrait>,
 }
 
-pub struct LOD<V:glium::vertex::Vertex>{
-    vbo:VertexBuffer<V>,
-    program:Rc<render::Program>,
-    primitive_type:PrimitiveType,
-}
+impl Slot for Geometry{
+    fn set_id(&mut self,id:ID) {
+        self.id=id;
+    }
 
-impl<V:glium::vertex::Vertex> LODTrait for LOD<V>{
-    fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawError>{
-
-        let uniforms = uniform! {
-            persp_matrix: frame.perspective_matrix,
-            view_matrix: frame.view_matrix,
-        };
-
-        use glium::Surface;
-
-        frame.target.draw(&self.vbo,
-                    &glium::index::NoIndices(self.primitive_type),
-                    &self.program.glium_program,
-                    &uniforms,
-                    &frame.draw_parameters
-        )
+    fn get_id(&self) -> ID {
+        self.id
     }
 }
 
-impl<V:glium::vertex::Vertex> LOD<V>{
-    pub fn new(render:&Render, fvf_str:&String, geometry:Pz5Geometry, geometry_type:GeometryType) -> Result<Box<Self>,Error>{
+impl Geometry{
+    pub fn new(
+        geometry:Pz5Geometry,
+        geometry_type:GeometryType,
+        vertex_format:String,
+        shader:Rc<ModelShader>,
+        window:&Window
+    ) -> Result<Self, RenderError> {
         let primitive_type=match geometry_type{
             GeometryType::Points => PrimitiveType::Points,
             GeometryType::Lines => PrimitiveType::LinesList,
             GeometryType::Triangles => PrimitiveType::TrianglesList,
         };
 
-        let program=match render.programs.get(fvf_str){
-            Some( program ) => program.clone(),
-            None => return Err( Error::NoShaderProgram(fvf_str.clone()) ),
+        let vbo:Box<VBOTrait>=match vertex_format.as_str() {
+            "VERTEX:(X:f32,Y:f32)" => Box::new( VBO::<vertex::VertexP2>::new(
+                geometry,primitive_type,shader,window
+            )? ),
+            "VERTEX:(X:f32,Y:f32,Z:f32)" => Box::new( VBO::<vertex::VertexP3>::new(
+                geometry,primitive_type,shader,window
+            )? ),
+            _ => return Err(RenderError::NoShaderProgram(String::from("aaa"))),
         };
 
-        let vbo=glium::VertexBuffer::new(&render.display, geometry.as_buf::<V>() )?;
+        let geometry=Geometry{
+            id:ID::zeroed(),
+            vbo:vbo,
+        };
 
-        Ok( Box::new(
-            LOD{
-                vbo:vbo,
-                program:program,
-                primitive_type:primitive_type,
-            }
-        ) )
+        Ok(geometry)
+    }
+
+    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        self.vbo.render(frame)?;
+
+        Ok(())
     }
 }
