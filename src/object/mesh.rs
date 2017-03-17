@@ -3,6 +3,7 @@ use pz5;
 use pz5_collada;
 use glium;
 use render;
+use cgmath;
 
 use std::sync::Arc;
 use std::sync::{Mutex,RwLock};
@@ -11,6 +12,8 @@ use pz5_collada::from_collada::FromColladaMesh;
 use std::collections::HashMap;
 use pz5::vertex_format::VertexFormat;
 use pz5::GeometryType;
+
+use cgmath::Matrix4;
 
 use object_pool::multithreaded_growable::{ID,Slot};
 
@@ -31,6 +34,10 @@ pub struct MeshAttrib{
     pub geometry_type:GeometryType,
     pub description:String,
 
+    pub position:pz5::Position,
+    pub rotation:pz5::Rotation,
+    pub scale:pz5::Scale,
+
     pub include:bool,
     pub display:bool,
 }
@@ -40,6 +47,7 @@ pub struct Mesh{
     pub vertex_format:String,
     pub geometry_type:GeometryType,
 
+    pub matrix:Mutex< Matrix4<f32> >,
     pub model:Mutex< Option<ID> >,
     pub lods:RwLock< Vec<Arc<LOD>> >,
 
@@ -69,15 +77,23 @@ impl Mesh{
         geometry_type:GeometryType,
         description:String,
 
+        position:pz5::Position,
+        rotation:pz5::Rotation,
+        scale:pz5::Scale,
+
         object:&Object
     ) -> Result< Arc<Self>, ProcessError >{
+        use cgmath::SquareMatrix;
+
         let mesh=Mesh{
             id:ID::zeroed(),
             vertex_format:vertex_format.clone(),
             geometry_type:geometry_type.clone(),
 
+            matrix:Mutex::new( Matrix4::identity() ),
             model:Mutex::new( None ),
             lods:RwLock::new( Vec::new() ),
+            //matrix:Mutex
 
             attrib:RwLock::new(
                 MeshAttrib{
@@ -86,11 +102,17 @@ impl Mesh{
                     geometry_type:geometry_type,
                     description:description,
 
+                    position:position,
+                    rotation:rotation,
+                    scale:scale,
+
                     include:true,
                     display:object.is_gui,
                 }
             ),
         };
+
+        mesh.calc_matrix();
 
         object.add_mesh_to_pool( mesh )
     }
@@ -157,9 +179,10 @@ impl Mesh{
             }
         }
 
+        let matrix_guard=self.matrix.lock().unwrap();    
         let lods_guard=self.lods.read().unwrap();
 
-        (*lods_guard)[0].render(frame)?;
+        (*lods_guard)[0].render(frame,&*matrix_guard)?;
 
         /*
         for lod in lods_guard.iter() {
@@ -168,6 +191,19 @@ impl Mesh{
         */
 
         Ok(())
+    }
+
+    pub fn calc_matrix(&self) {
+        let attrib_guard=self.attrib.read().unwrap();
+        let pz5_matrix=pz5::Matrix4::new(
+            &attrib_guard.position,
+            &attrib_guard.rotation,
+            &attrib_guard.scale
+        );
+        let m=&pz5_matrix.mat;
+        let matrix=Matrix4::new(m[0],m[4],m[8],m[12],m[1],m[5],m[9],m[13],m[2],m[6],m[10],m[14],m[3],m[7],m[11],m[15]);
+
+        *self.matrix.lock().unwrap()=matrix;
     }
 
     //rebuild on vf change
@@ -187,7 +223,7 @@ impl Mesh{
 
     pub fn adapt_vertex_format(&self) -> Result<String,ProcessError> {
         //Ok( self.vertex_format.clone() )
-        Ok(String::from("VERTEX:(X:f32,Y:f32,Z:f32)"))
+        Ok(String::from("VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)"))
     }
 
 

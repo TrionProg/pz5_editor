@@ -257,7 +257,8 @@ impl Render {
         if self.gui.input.right_mouse_button==ElementState::Pressed {
             use std::ffi::OsString;
             let mut file_name=OsString::new();
-            file_name.push("pz5_3.dae");
+            //file_name.push("pz5_3.dae");
+            file_name.push("box.dae");
             self.to_process_tx.send( ProcessTask::LoadModel(file_name) );
         }
     }

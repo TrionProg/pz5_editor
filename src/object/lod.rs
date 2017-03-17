@@ -12,6 +12,8 @@ use pz5::vertex_format::VertexFormat;
 
 use object_pool::multithreaded_growable::{ID,Slot};
 
+use cgmath::Matrix4;
+
 use ProcessError;
 use Object;
 
@@ -90,7 +92,7 @@ impl LOD{
         object.add_lod_to_pool( lod )
     }
 
-    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut RenderFrame, mesh_matrix:&Matrix4<f32>) -> Result<(),RenderError> {
         {
             let attrib=self.attrib.read().unwrap();
 
@@ -111,7 +113,7 @@ impl LOD{
             None => return Err(RenderError::NoGeometryWithID(geometry_id)),
         };
 
-        geometry.render(frame)?;
+        geometry.render(frame, mesh_matrix)?;
 
         Ok(())
     }

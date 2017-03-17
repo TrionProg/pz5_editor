@@ -9,6 +9,8 @@ use super::ModelShader;
 use super::{VBO,VBOTrait};
 use super::vertex;
 
+use cgmath::Matrix4;
+
 use RenderError;
 use Window;
 
@@ -50,6 +52,9 @@ impl Geometry{
             "VERTEX:(X:f32,Y:f32,Z:f32)" => Box::new( VBO::<vertex::VertexP3>::new(
                 geometry,primitive_type,shader,window
             )? ),
+            "VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)" => Box::new( VBO::<vertex::VertexP3N3>::new(
+                geometry,primitive_type,shader,window
+            )? ),
             _ => return Err(RenderError::NoShaderProgram(String::from("aaa"))),
         };
 
@@ -61,8 +66,8 @@ impl Geometry{
         Ok(geometry)
     }
 
-    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
-        self.vbo.render(frame)?;
+    pub fn render(&self, frame:&mut RenderFrame, mesh_matrix:&Matrix4<f32>) -> Result<(),RenderError> {
+        self.vbo.render(frame,mesh_matrix)?;
 
         Ok(())
     }

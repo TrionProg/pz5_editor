@@ -145,12 +145,17 @@ impl Model{
             )?;
 
             for (_,virtual_mesh) in virtual_meshes.iter(){
+                println!("{} {} {}",virtual_mesh.position, virtual_mesh.rotation, virtual_mesh.scale);
                 let mesh=Mesh::build(virtual_mesh,|virtual_mesh|{
                     let mesh=Mesh::new(
                         virtual_mesh.name.clone(),
                         virtual_mesh.vertex_format.clone(),
                         virtual_mesh.geometry_type,
                         String::new(),
+
+                        pz5::Position::Pos3D(virtual_mesh.position),
+                        pz5::Rotation::Euler(virtual_mesh.rotation),
+                        pz5::Scale::Scale3D(virtual_mesh.scale),
 
                         object
                     )?;
