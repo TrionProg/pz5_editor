@@ -1,14 +1,15 @@
 use std;
 use pz5;
-use pz5_collada;
+use from_collada;
 use glium;
 use render;
 
 use std::sync::Arc;
 use std::sync::{Mutex,RwLock};
 
-use pz5_collada::from_collada::FromColladaLOD;
 use pz5::vertex_format::VertexFormat;
+
+use from_collada::VirtualLOD;
 
 use object_pool::multithreaded_growable::{ID,Slot};
 
@@ -41,11 +42,6 @@ pub struct LOD{
     pub geometry_id:Mutex< Option<ID> >,
 
     pub attrib:RwLock< LODAttrib >,
-}
-
-impl FromColladaLOD for LOD{
-    type Error=ProcessError;
-    type Container=Arc<Self>;
 }
 
 impl Slot for LOD{
@@ -90,6 +86,26 @@ impl LOD{
         };
 
         object.add_lod_to_pool( lod )
+    }
+
+    pub fn build(
+        virtual_lod:&VirtualLOD,
+        object:&Object,
+        vertex_format:String
+    ) -> Result<Arc<Self>,ProcessError> {
+        let geometry=from_collada::Geometry::new( virtual_lod.geometry.clone() );
+
+        let lod=LOD::new(
+            virtual_lod.distance,
+            vertex_format,
+            Geometry::ColladaGeometry(geometry),
+            virtual_lod.vertices_count,
+            String::new(),
+
+            object,
+        )?;
+
+        Ok(lod)
     }
 
     pub fn render(&self, frame:&mut RenderFrame, mesh_matrix:&Matrix4<f32>) -> Result<(),RenderError> {

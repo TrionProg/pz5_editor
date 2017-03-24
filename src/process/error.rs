@@ -1,6 +1,6 @@
 use std;
 use pz5;
-use pz5_collada;
+use from_collada;
 
 use std::sync::mpsc::SendError;
 
@@ -10,13 +10,13 @@ use render::RenderTask;
 pub enum ProcessError{
     FileNameNotUTF,
     NoFileName,
-    FromColladaError(Box< pz5_collada::from_collada::Error >),
+    FromColladaError(Box< from_collada::Error >),
     VertexFormatParseError(String),
     SendTaskError(Box<SendError<RenderTask>>),
 }
 
-impl From<pz5_collada::from_collada::Error> for ProcessError {
-    fn from(from_collada_error: pz5_collada::from_collada::Error) -> Self{
+impl From<from_collada::Error> for ProcessError {
+    fn from(from_collada_error: from_collada::Error) -> Self{
         ProcessError::FromColladaError( Box::new(from_collada_error) )
     }
 }

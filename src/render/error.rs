@@ -1,6 +1,5 @@
 use std;
 use pz5;
-use pz5_collada;
 use glium;
 
 use object_pool::growable::ID;

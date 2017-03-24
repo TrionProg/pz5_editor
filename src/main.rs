@@ -1,11 +1,11 @@
 extern crate pz5;
-extern crate pz5_collada;
 extern crate collada;
 #[macro_use]
 extern crate glium;
 extern crate glutin;
 extern crate cgmath;
 extern crate object_pool;
+extern crate byteorder;
 
 use std::env;
 use std::io::Write;
@@ -34,6 +34,8 @@ pub use camera::Camera;
 
 pub mod object;
 pub use object::Object;
+
+pub mod from_collada;
 
 pub mod state;
 pub use state::State;

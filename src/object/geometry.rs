@@ -1,8 +1,8 @@
 use std;
 use pz5;
-use pz5_collada;
 use render;
 use render::vertex;
+use from_collada;
 
 use std::rc::Rc;
 
@@ -14,7 +14,7 @@ use pz5::vertex_format::VertexFormat;
 use pz5::Pz5Geometry;
 
 pub enum Geometry{
-    ColladaGeometry(pz5_collada::from_collada::Geometry),
+    ColladaGeometry(from_collada::Geometry),
     //Pz5Geometry(pz5::Pz5Geometry),
 }
 

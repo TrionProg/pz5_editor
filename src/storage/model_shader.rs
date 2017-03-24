@@ -189,7 +189,7 @@ in vec2 tex_coords;"
 
         fragment_code.push_str("
 out vec4 f_color;
-const vec3 LIGHT = vec3(-0.2, 0.8, 0.1);
+const vec3 LIGHT = vec3(10, 10, 10);
 void main() {"
         );
 

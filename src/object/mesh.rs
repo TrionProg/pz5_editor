@@ -1,6 +1,5 @@
 use std;
 use pz5;
-use pz5_collada;
 use glium;
 use render;
 use cgmath;
@@ -8,10 +7,10 @@ use cgmath;
 use std::sync::Arc;
 use std::sync::{Mutex,RwLock};
 
-use pz5_collada::from_collada::FromColladaMesh;
 use std::collections::HashMap;
 use pz5::vertex_format::VertexFormat;
 use pz5::GeometryType;
+use from_collada::VirtualMesh;
 
 use cgmath::Matrix4;
 
@@ -52,12 +51,6 @@ pub struct Mesh{
     pub lods:RwLock< Vec<Arc<LOD>> >,
 
     pub attrib:RwLock< MeshAttrib >,
-}
-
-impl FromColladaMesh for Mesh{
-    type LOD=LOD;
-    type Error=ProcessError;
-    type Container=Arc<Self>;
 }
 
 impl Slot for Mesh{
@@ -115,6 +108,33 @@ impl Mesh{
         mesh.calc_matrix();
 
         object.add_mesh_to_pool( mesh )
+    }
+
+    pub fn build(
+        virtual_mesh:&VirtualMesh,
+        object:&Object,
+        to_render_tx:&RenderSender
+    ) -> Result<Arc<Self>,ProcessError> {
+        let mesh=Mesh::new(
+            virtual_mesh.name.clone(),
+            virtual_mesh.vertex_format.clone(),
+            virtual_mesh.geometry_type,
+            String::new(),
+
+            pz5::Position::Pos3D(virtual_mesh.position),
+            pz5::Rotation::Euler(virtual_mesh.rotation),
+            pz5::Scale::Scale3D(virtual_mesh.scale),
+
+            object
+        )?;
+
+        for virtual_lod in virtual_mesh.lods.iter(){
+            let lod=LOD::build(virtual_lod, object, virtual_mesh.vertex_format.clone() )?;
+
+            mesh.add_lod(lod, to_render_tx)?;
+        }
+
+        Ok(mesh)
     }
 
     pub fn add_lod(&self, lod:Arc<LOD>, to_render_tx:&RenderSender) -> Result<(),ProcessError>{
@@ -179,7 +199,7 @@ impl Mesh{
             }
         }
 
-        let matrix_guard=self.matrix.lock().unwrap();    
+        let matrix_guard=self.matrix.lock().unwrap();
         let lods_guard=self.lods.read().unwrap();
 
         (*lods_guard)[0].render(frame,&*matrix_guard)?;

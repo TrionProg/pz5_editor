@@ -22,7 +22,7 @@ impl Viewport{
         let perspective=PerspectiveFov{
             fovy:rad(0.5),
             aspect:aspect_ratio,
-            near:0.001,
+            near:0.1,
             far:1000.0,
         };
 

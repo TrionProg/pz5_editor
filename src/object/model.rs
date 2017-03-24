@@ -1,25 +1,23 @@
 use std;
 use pz5;
-use pz5_collada;
 use glium;
+use collada;
 
 use std::sync::Arc;
 use std::sync::{Mutex,RwLock};
 
-use pz5_collada::from_collada::FromColladaModel;
-use pz5_collada::from_collada::FromColladaMesh;
-use pz5_collada::from_collada::FromColladaLOD;
-
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::path::Path;
+
+use from_collada::VirtualModel;
+use from_collada::VirtualMesh;
 
 use object_pool::multithreaded_growable::{ID,Slot};
 
 use ProcessError;
 use Object;
 use RenderSender;
-//use ObjectFrame;
 
 use super::LOD;
 use super::Mesh;
@@ -42,12 +40,6 @@ pub struct Model{
     pub meshes: RwLock< HashMap<String, Arc<Mesh>> >,
 
     pub attrib:RwLock< ModelAttrib >,
-}
-
-impl FromColladaModel for Model{
-    type Mesh=Mesh;
-    type Error=ProcessError;
-    type Container=Arc<Self>;
 }
 
 impl Slot for Model{
@@ -135,61 +127,38 @@ impl Model{
 
     pub fn load_from_collada(file_name:&Path, object:&Object, to_render_tx:&RenderSender) -> Result<(),ProcessError>{
         let model_name=Self::get_model_name(file_name)?;
+        let document=VirtualModel::parse_collada(file_name)?;
+        let virtual_meshes=VirtualModel::generate_virtual_meshes(&document)?;
 
-        let model=Model::build(file_name,|document, virtual_meshes|{
-            let model=Model::new(
-                model_name,
-                String::new(),
-
-                object
-            )?;
-
-            for (_,virtual_mesh) in virtual_meshes.iter(){
-                println!("{} {} {}",virtual_mesh.position, virtual_mesh.rotation, virtual_mesh.scale);
-                let mesh=Mesh::build(virtual_mesh,|virtual_mesh|{
-                    let mesh=Mesh::new(
-                        virtual_mesh.name.clone(),
-                        virtual_mesh.vertex_format.clone(),
-                        virtual_mesh.geometry_type,
-                        String::new(),
-
-                        pz5::Position::Pos3D(virtual_mesh.position),
-                        pz5::Rotation::Euler(virtual_mesh.rotation),
-                        pz5::Scale::Scale3D(virtual_mesh.scale),
-
-                        object
-                    )?;
-
-                    for virtual_lod in virtual_mesh.lods.iter(){
-                        let lod=LOD::build(virtual_lod,|virtual_lod,geometry|{
-                            let lod=LOD::new(
-                                virtual_lod.distance,
-                                virtual_mesh.vertex_format.clone(),
-                                Geometry::ColladaGeometry(geometry),
-                                virtual_lod.vertices_count,
-                                String::new(),
-
-                                object,
-                            )?;
-
-                            Ok(lod)
-                        })?;
-
-                        mesh.add_lod(lod,to_render_tx)?;
-                    }
-
-                    Ok(mesh)
-                })?;
-
-                model.add_mesh(mesh);
-            }
-
-            Ok(model)
-        })?;
+        let model=Model::build(&document, &virtual_meshes, model_name, object, to_render_tx)?;
 
         object.add_model(model);
 
         Ok(())
+    }
+
+    pub fn build(
+        document:&collada::Document,
+        virtual_meshes:&HashMap<String,VirtualMesh>,
+        model_name:String,
+        object:&Object,
+        to_render_tx:&RenderSender
+    ) -> Result<Arc<Self>,ProcessError> {
+        let model=Model::new(
+            model_name,
+            String::new(),
+
+            object
+        )?;
+
+        for (_,virtual_mesh) in virtual_meshes.iter(){
+            println!("{} {} {}",virtual_mesh.position, virtual_mesh.rotation, virtual_mesh.scale);
+            let mesh=Mesh::build(virtual_mesh,object,to_render_tx)?;
+
+            model.add_mesh(mesh);
+        }
+
+        Ok(model)
     }
 
     pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
