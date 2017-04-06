@@ -7,27 +7,29 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
 
+use collada::Document;
+use collada::Scene;
+
 use super::VirtualMesh;
 use super::VirtualLOD;
 
 use super::Error;
+use super::location::pos3d_from_collada;
+use super::location::quaternion_from_collada;
+
+use location::Location;
 
 pub struct VirtualModel;
 
 impl VirtualModel{
-    pub fn parse_collada(file_name:&Path) -> Result<collada::Document,Error>{
+    pub fn parse_collada(file_name:&Path) -> Result<Document,Error>{
         match collada::Document::parse(file_name){
             Ok( d ) => Ok(d),
             Err(e) => Err(Error::ColladaError(e)),
         }
     }
 
-    pub fn generate_virtual_meshes<'a>(document:&'a collada::Document) -> Result<HashMap<String,VirtualMesh<'a>>,Error>{
-        let (scene_name,scene)=match document.scenes.iter().next(){
-            Some( (scene_name,scene) ) => (scene_name,scene),
-            None => return Err(Error::Other( String::from("Collada document has no scenes") )),
-        };
-
+    pub fn generate_virtual_meshes<'a>(document:&'a Document, scene:&'a Scene) -> Result<HashMap<String,VirtualMesh<'a>>,Error>{
         let mut virtual_meshes=HashMap::new();
 
         for (_, node) in scene.geometries.iter(){
@@ -71,13 +73,19 @@ impl VirtualModel{
                         let mut lods=Vec::with_capacity(1);
                         lods.push(virtual_lod);
 
+                        let location = match Location::from_collada(&node.location) {
+                            Ok ( location ) => location,
+                            Err( _ ) => {
+                                println!("{} {} {}", node.location.scale.x, node.location.scale.y, node.location.scale.z);
+                                return Err( Error::Other( format!("Geometry \"{}\" has different scales",node.name) ));
+                            },
+                        };
+
                         entry.insert(
                             VirtualMesh{
                                 name:mesh_name,
                                 vertex_format:vertex_format,
-                                position:pz5::Pos3D::new(node.position.x, node.position.y, node.position.z),
-                                rotation:pz5::Euler::new(node.rotation.pitch, node.rotation.yaw,node. rotation.roll),
-                                scale:pz5::Scale3D::new(node.scale.x, node.scale.y, node.scale.z),
+                                location:location,
 
                                 lods:lods,
                                 geometry_type:geometry_type,

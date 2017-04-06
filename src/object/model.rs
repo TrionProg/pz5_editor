@@ -15,6 +15,8 @@ use from_collada::VirtualMesh;
 
 use object_pool::multithreaded_growable::{ID,Slot};
 
+use from_collada::read_skeleton;
+
 use ProcessError;
 use Object;
 use RenderSender;
@@ -22,6 +24,9 @@ use RenderSender;
 use super::LOD;
 use super::Mesh;
 use super::Geometry;
+use super::Skeleton;
+use super::ZeroFrame;
+use super::Animation;
 
 use RenderError;
 use RenderFrame;
@@ -38,6 +43,9 @@ pub struct Model{
     pub id:ID,
 
     pub meshes: RwLock< HashMap<String, Arc<Mesh>> >,
+    pub skeleton: RwLock< Skeleton >,
+    pub zero_frame: RwLock< ZeroFrame >,
+    //pub animations: RwLock< HashMap<
 
     pub attrib:RwLock< ModelAttrib >,
 }
@@ -57,12 +65,17 @@ impl Model{
         name:String,
         description:String,
 
+        skeleton:Skeleton,
+        zero_frame:ZeroFrame,
+
         object:&Object
     ) -> Result< Arc<Self>, ProcessError >{
         let model=Model{
             id:ID::zeroed(),
 
             meshes:RwLock::new( HashMap::new() ),
+            skeleton:RwLock::new( skeleton ),
+            zero_frame:RwLock::new( zero_frame ),
 
             attrib:RwLock::new(
                 ModelAttrib{
@@ -128,11 +141,15 @@ impl Model{
     pub fn load_from_collada(file_name:&Path, object:&Object, to_render_tx:&RenderSender) -> Result<(),ProcessError>{
         let model_name=Self::get_model_name(file_name)?;
         let document=VirtualModel::parse_collada(file_name)?;
-        let virtual_meshes=VirtualModel::generate_virtual_meshes(&document)?;
 
-        let model=Model::build(&document, &virtual_meshes, model_name, object, to_render_tx)?;
+        for (scene_name, scene) in document.scenes.iter(){
+            let (skeleton,zero_frame)=read_skeleton(scene)?;
+            let virtual_meshes=VirtualModel::generate_virtual_meshes(&document, scene)?;//TODO: generate model_name for scene
 
-        object.add_model(model);
+            let model=Model::build(&document, &virtual_meshes, skeleton, zero_frame, model_name.clone(), object, to_render_tx)?;
+
+            object.add_model(model);
+        }
 
         Ok(())
     }
@@ -140,6 +157,8 @@ impl Model{
     pub fn build(
         document:&collada::Document,
         virtual_meshes:&HashMap<String,VirtualMesh>,
+        skeleton:Skeleton,
+        zero_frame:ZeroFrame,
         model_name:String,
         object:&Object,
         to_render_tx:&RenderSender
@@ -148,11 +167,13 @@ impl Model{
             model_name,
             String::new(),
 
+            skeleton,
+            zero_frame,
+
             object
         )?;
 
         for (_,virtual_mesh) in virtual_meshes.iter(){
-            println!("{} {} {}",virtual_mesh.position, virtual_mesh.rotation, virtual_mesh.scale);
             let mesh=Mesh::build(virtual_mesh,object,to_render_tx)?;
 
             model.add_mesh(mesh);
@@ -178,101 +199,4 @@ impl Model{
 
         Ok(())
     }
-
-/*
-                }
-
-    pub fn include_collada_model(file_name:&Path, object:&mut Object>) -> Result<Self,ProcessError> {
-        let model_name=Self::get_model_name(file_name)?;
-
-        Model::new(
-            model_name,
-            String::new(),
-            object.is_gui,
-        )
-
-        let model=<Self as FromColladaModel>::build(file_name,
-        |document, virtual_meshes|{
-            let mut meshes=HashMap::new();
-
-            for (_,virtual_mesh) in virtual_meshes.iter(){
-                let mesh=Mesh::build(virtual_mesh,|virtual_mesh|{
-                    //let vertex_format=Mesh::adapt_vertex_format(&virtual_mesh.vertex_format)?;
-                    //remove & from vf
-                    //adapt and use adapted vf for lods
-
-                    let vertex_format=String::from("VERTEX:(X:f32,Y:f32)");
-
-                    Mesh::new(
-                        virtual_mesh.name.clone(),
-                        virtual_mesh.vertex_format.clone(),
-                        vertex_format,
-                        virtual_mesh.geometry_type,
-                        lods,
-                        String::new(),
-                        render.clone(),
-                    )
-
-                    let mut lods=Vec::with_capacity(virtual_mesh.lods.len());
-
-                    for virtual_lod in virtual_mesh.lods.iter(){
-                        let lod = LOD::build(virtual_lod,|virtual_lod,geometry|{
-                            let id=geometry.collada_mesh.id;
-
-                            LOD::new(
-                                virtual_lod.distance,
-                                id,
-                                Geometry::ColladaGeometry(geometry),
-                                virtual_lod.vertices_count,
-                                String::new(),
-                                render.is_some(),
-                            )
-                        })?;
-
-                        lods.push(Arc::new(lod));
-                    }
-
-                    Mesh::new(
-                        virtual_mesh.name.clone(),
-                        virtual_mesh.vertex_format.clone(),
-                        vertex_format,
-                        virtual_mesh.geometry_type,
-                        lods,
-                        String::new(),
-                        render.clone(),
-                    )
-                })?;
-
-                match meshes.entry(mesh.name.clone()){
-                    Entry::Occupied( _ ) => return Err(Self::ProcessError::from(
-                        ProcessError::Other( format!("Mesh \"{}\" already exists",mesh.name) )
-                    )),
-                    Entry::Vacant( e ) => {e.insert(Arc::new(mesh));},
-                }
-            }
-
-            Model::new(
-                model_id,
-                model_name,
-                meshes,
-                String::new(),
-                render.is_some(),
-            )
-        })?;
-
-        Ok(model)
-    }
-
-    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawProcessError>{
-        if !self.display {
-            return Ok(());
-        }
-
-        for (_,mesh) in self.meshes.iter(){
-            mesh.render(frame)?;
-        }
-
-        Ok(())
-    }
-*/
 }

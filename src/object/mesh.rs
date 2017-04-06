@@ -21,6 +21,8 @@ use Object;
 use RenderSender;
 use RenderTask;
 
+use location::Location;
+
 use super::LOD;
 //use ObjectFrame;
 
@@ -33,9 +35,7 @@ pub struct MeshAttrib{
     pub geometry_type:GeometryType,
     pub description:String,
 
-    pub position:pz5::Position,
-    pub rotation:pz5::Rotation,
-    pub scale:pz5::Scale,
+    pub location:Location,
 
     pub include:bool,
     pub display:bool,
@@ -70,9 +70,7 @@ impl Mesh{
         geometry_type:GeometryType,
         description:String,
 
-        position:pz5::Position,
-        rotation:pz5::Rotation,
-        scale:pz5::Scale,
+        location:Location,
 
         object:&Object
     ) -> Result< Arc<Self>, ProcessError >{
@@ -95,9 +93,7 @@ impl Mesh{
                     geometry_type:geometry_type,
                     description:description,
 
-                    position:position,
-                    rotation:rotation,
-                    scale:scale,
+                    location:location,
 
                     include:true,
                     display:object.is_gui,
@@ -121,9 +117,7 @@ impl Mesh{
             virtual_mesh.geometry_type,
             String::new(),
 
-            pz5::Position::Pos3D(virtual_mesh.position),
-            pz5::Rotation::Euler(virtual_mesh.rotation),
-            pz5::Scale::Scale3D(virtual_mesh.scale),
+            virtual_mesh.location,
 
             object
         )?;
@@ -153,7 +147,11 @@ impl Mesh{
         let to_vertex_format=self.adapt_vertex_format()?;//self.attrib.read().unwrap().vertex_format.clone();
         let to_geometry_type=self.attrib.read().unwrap().geometry_type;
 
-        let pz5_geometry=lod.geometry.build_render_lod(&lod.vertex_format, &to_vertex_format, self.geometry_type, to_geometry_type)?;
+        let pz5_geometry={
+            let matrix_guard=self.matrix.lock().unwrap();
+            //lod.geometry.build_render_lod(&*matrix_guard, &lod.vertex_format, &to_vertex_format, self.geometry_type, to_geometry_type)?
+            lod.geometry.build_render_lod(&*matrix_guard, &to_vertex_format)?
+        };
 
 
         to_render_tx.send( RenderTask::LoadLOD(lod,pz5_geometry,to_vertex_format,to_geometry_type) )?;
@@ -199,10 +197,8 @@ impl Mesh{
             }
         }
 
-        let matrix_guard=self.matrix.lock().unwrap();
         let lods_guard=self.lods.read().unwrap();
-
-        (*lods_guard)[0].render(frame,&*matrix_guard)?;
+        (*lods_guard)[0].render(frame)?;
 
         /*
         for lod in lods_guard.iter() {
@@ -215,15 +211,7 @@ impl Mesh{
 
     pub fn calc_matrix(&self) {
         let attrib_guard=self.attrib.read().unwrap();
-        let pz5_matrix=pz5::Matrix4::new(
-            &attrib_guard.position,
-            &attrib_guard.rotation,
-            &attrib_guard.scale
-        );
-        let m=&pz5_matrix.mat;
-        let matrix=Matrix4::new(m[0],m[4],m[8],m[12],m[1],m[5],m[9],m[13],m[2],m[6],m[10],m[14],m[3],m[7],m[11],m[15]);
-
-        *self.matrix.lock().unwrap()=matrix;
+        *self.matrix.lock().unwrap()=Matrix4::from(attrib_guard.location);
     }
 
     //rebuild on vf change
@@ -245,33 +233,4 @@ impl Mesh{
         //Ok( self.vertex_format.clone() )
         Ok(String::from("VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)"))
     }
-
-
-/*
-
-    pub fn build_render_lods(&mut self, render:&Render) -> Result<(),ProcessError> {
-        let vertex_format_str=String::from("VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)");
-        let vertex_format=VertexFormat::parse(&vertex_format_str).unwrap();
-
-        for lod in self.lods.iter_mut(){
-            Rc::get_mut(lod).unwrap().build_render_lod(render, &vertex_format, &vertex_format_str, self.geometry_type)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawProcessError>{
-        if !self.display {
-            return Ok(());
-        }
-
-        self.lods[0].render(frame)?;
-
-        Ok(())
-    }
-
-    pub fn adapt_vertex_format(in_fvf:&String) -> Result<String,ProcessError> {
-        Ok( in_fvf.clone() )
-    }
-*/
 }

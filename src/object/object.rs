@@ -21,8 +21,6 @@ use super::LOD;
 use super::Mesh;
 use super::Model;
 
-//use ObjectFrame;
-
 pub struct Object{
     pub models: RwLock< HashMap<String, Arc<Model> > >,
     pub pool_lods: MTPool<LOD>,
@@ -97,23 +95,4 @@ impl Object{
 
         Ok(())
     }
-    /*
-
-    pub fn include_collada_model(&mut self, file_name:&Path) -> Result<(),ProcessError> {
-        let model=Model::include_collada_model(file_name, self.model_id, &self.render)?;
-
-        self.models.insert(self.model_id, Rc::new(model));
-        self.model_id+=1;
-
-        Ok(())
-    }
-
-    pub fn render(&self, frame:&mut ObjectFrame) -> Result<(),glium::DrawProcessError>{
-        for (_,model) in self.models.iter(){
-            model.render(frame)?;
-        }
-
-        Ok(())
-    }
-    */
 }

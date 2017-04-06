@@ -13,6 +13,8 @@ use pz5::GeometryType;
 use pz5::vertex_format::VertexFormat;
 use pz5::Pz5Geometry;
 
+use location::Matrix4;
+
 pub enum Geometry{
     ColladaGeometry(from_collada::Geometry),
     //Pz5Geometry(pz5::Pz5Geometry),
@@ -20,12 +22,19 @@ pub enum Geometry{
 
 
 impl Geometry{
-    pub fn build_render_lod(&self, in_vertex_format:&String, out_vertex_format:&String, in_geometry_type:GeometryType, out_geometry_type:GeometryType) -> Result<Pz5Geometry, ProcessError>{
+    pub fn build_render_lod(
+        &self,
+        matrix:&Matrix4,
+        //in_vertex_format:&String,
+        out_vertex_format:&String,
+        //in_geometry_type:GeometryType,
+        //out_geometry_type:GeometryType
+    ) -> Result<Pz5Geometry, ProcessError>{
         //TODO:adapt out_vertex_format
 
         match *self{
             Geometry::ColladaGeometry( ref geometry ) => {
-                let pz5_geometry=geometry.build_geometry( &VertexFormat::parse(out_vertex_format)? )?;
+                let pz5_geometry=geometry.build_geometry( matrix, &VertexFormat::parse(out_vertex_format)? )?;
                 Ok(pz5_geometry)
 
                 /*

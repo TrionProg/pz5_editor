@@ -20,6 +20,8 @@ pub mod error;
 pub use error::Error;
 */
 
+pub mod location;
+
 pub mod window;
 pub use window::Window;
 

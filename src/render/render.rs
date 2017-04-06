@@ -259,6 +259,7 @@ impl Render {
             let mut file_name=OsString::new();
             file_name.push("pz5.dae");
             //file_name.push("box.dae");
+            //file_name.push("anim2.dae");
             self.to_process_tx.send( ProcessTask::LoadModel(file_name) );
         }
     }

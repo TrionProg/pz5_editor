@@ -11,6 +11,9 @@ pub enum Error{
     NoVertices,
     NoPolygons,
     LayerMustBeI32OrF32(&'static str),
+    BoneDifferentSizes(String,String),
+    MeshDifferentSizes(String),
+    DuplicateBone(String),
     Other(String),
 }
 
@@ -24,6 +27,9 @@ impl std::fmt::Display for Error{
             Error::NoVertices => write!(f, "No vertices"),
             Error::NoPolygons => write!(f, "No polygons"),
             Error::LayerMustBeI32OrF32(found) => write!(f, "Expected only f32 or i32, but layer has {} format",found),
+            Error::BoneDifferentSizes(ref skeleton_name, ref bone_name) => write!(f, "Bone \"{}\" of skeleton \"{}\", has different sizes", bone_name, skeleton_name),
+            Error::MeshDifferentSizes(ref mesh_name) => write!(f, "Mesh \"{}\", has different sizes", mesh_name),
+            Error::DuplicateBone(ref bone_name) => write!(f, "Duplicate bone \"{}\", check name of bone and skeleton", bone_name),
             Error::Other(ref message) => write!(f, "{}", message),
         }
     }

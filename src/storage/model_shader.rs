@@ -66,7 +66,7 @@ impl ModelShader{
 #version 140
 uniform mat4 perspective_matrix;
 uniform mat4 camera_matrix;
-uniform mat4 mesh_matrix;"
+//uniform mat4 mesh_matrix;"
         );
 
         // IN
@@ -147,7 +147,7 @@ out vec2 v_tex_coords;"
 
 
         vertex_code.push_str("
-    gl_Position = perspective_matrix * camera_matrix * mesh_matrix * vec4(v_position, 1.0);"
+    gl_Position = perspective_matrix * camera_matrix /* * mesh_matrix * */ * vec4(v_position, 1.0);"
         );
 
         /*

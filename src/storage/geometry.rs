@@ -9,8 +9,6 @@ use super::ModelShader;
 use super::{VBO,VBOTrait};
 use super::vertex;
 
-use cgmath::Matrix4;
-
 use RenderError;
 use Window;
 
@@ -66,8 +64,8 @@ impl Geometry{
         Ok(geometry)
     }
 
-    pub fn render(&self, frame:&mut RenderFrame, mesh_matrix:&Matrix4<f32>) -> Result<(),RenderError> {
-        self.vbo.render(frame,mesh_matrix)?;
+    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        self.vbo.render(frame)?;
 
         Ok(())
     }

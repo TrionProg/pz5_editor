@@ -9,8 +9,6 @@ use pz5::GeometryType;
 use glium::index::PrimitiveType;
 use pz5::Pz5Geometry;
 
-use cgmath::Matrix4;
-
 use RenderError;
 use RenderFrame;
 use Window;
@@ -19,7 +17,7 @@ use super::ModelShader;
 
 
 pub trait VBOTrait{
-    fn render(&self, frame:&mut RenderFrame, mesh_matrix:&Matrix4<f32>) -> Result<(),RenderError>;
+    fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError>;
 }
 
 pub struct VBO<V:glium::vertex::Vertex>{
@@ -29,11 +27,11 @@ pub struct VBO<V:glium::vertex::Vertex>{
 }
 
 impl<V:glium::vertex::Vertex> VBOTrait for VBO<V>{
-    fn render(&self, frame:&mut RenderFrame, mesh_matrix:&Matrix4<f32>) -> Result<(),RenderError>{
+    fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError>{
         let uniforms = uniform! {
             perspective_matrix: Into::<[[f32; 4]; 4]>::into(frame.perspective_matrix),
             camera_matrix: Into::<[[f32; 4]; 4]>::into(frame.camera_matrix),
-            mesh_matrix: Into::<[[f32; 4]; 4]>::into(*mesh_matrix),
+            //mesh_matrix: Into::<[[f32; 4]; 4]>::into(*mesh_matrix),
         };
 
         use glium::Surface;

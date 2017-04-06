@@ -13,7 +13,7 @@ use from_collada::VirtualLOD;
 
 use object_pool::multithreaded_growable::{ID,Slot};
 
-use cgmath::Matrix4;
+use location::Matrix4;
 
 use ProcessError;
 use Object;
@@ -108,7 +108,7 @@ impl LOD{
         Ok(lod)
     }
 
-    pub fn render(&self, frame:&mut RenderFrame, mesh_matrix:&Matrix4<f32>) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
         {
             let attrib=self.attrib.read().unwrap();
 
@@ -129,7 +129,7 @@ impl LOD{
             None => return Err(RenderError::NoGeometryWithID(geometry_id)),
         };
 
-        geometry.render(frame, mesh_matrix)?;
+        geometry.render(frame)?;
 
         Ok(())
     }
