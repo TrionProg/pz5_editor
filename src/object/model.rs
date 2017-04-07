@@ -30,6 +30,7 @@ use super::Animation;
 
 use RenderError;
 use RenderFrame;
+use RenderTask;
 
 pub struct ModelAttrib{
     pub name:String,
@@ -144,9 +145,13 @@ impl Model{
 
         for (scene_name, scene) in document.scenes.iter(){
             let (skeleton,zero_frame)=read_skeleton(scene)?;
+            let skeleton_geometry=skeleton.build_geometry();
+
             let virtual_meshes=VirtualModel::generate_virtual_meshes(&document, scene)?;//TODO: generate model_name for scene
 
             let model=Model::build(&document, &virtual_meshes, skeleton, zero_frame, model_name.clone(), object, to_render_tx)?;
+
+            to_render_tx.send( RenderTask::LoadSkeleton(model.clone(),skeleton_geometry) )?;
 
             object.add_model(model);
         }
@@ -182,7 +187,14 @@ impl Model{
         Ok(model)
     }
 
+    pub fn prepare_skeleton(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        let mut skeleton_guard=self.skeleton.write().unwrap();
+        skeleton_guard.calculate_matrices(frame)
+    }
+
     pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        let skeleton_guard=self.skeleton.read().unwrap();
+
         {
             let attrib=self.attrib.read().unwrap();
 
@@ -196,6 +208,22 @@ impl Model{
         for (_,mesh) in meshes_guard.iter() {
             mesh.render(frame)?;
         }
+
+        Ok(())
+    }
+
+    pub fn render_skeleton(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        let skeleton_guard=self.skeleton.read().unwrap();
+
+        {
+            let attrib=self.attrib.read().unwrap();
+
+            if !attrib.include || !attrib.display {
+                return Ok(());
+            }
+        }
+
+        skeleton_guard.render(frame)?;
 
         Ok(())
     }

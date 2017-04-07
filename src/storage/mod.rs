@@ -18,3 +18,9 @@ pub mod geometry;
 pub use self::geometry::Geometry;
 
 pub mod vertex;
+
+pub mod skeleton_shader;
+pub use self::skeleton_shader::SkeletonShader;
+
+pub mod skeleton;
+pub use self::skeleton::Skeleton;

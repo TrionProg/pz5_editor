@@ -46,25 +46,25 @@ impl Object{
     }
 
 
-    pub fn add_lod_to_pool(&self,lod:LOD) -> Result< Arc<LOD>, ProcessError >{
+    pub fn add_lod_to_pool(&self, lod:LOD) -> Result< Arc<LOD>, ProcessError >{
         let ref_lod=self.pool_lods.insert(lod);
 
         Ok(ref_lod)
     }
 
-    pub fn add_mesh_to_pool(&self,mut mesh:Mesh) -> Result< Arc<Mesh>, ProcessError >{
+    pub fn add_mesh_to_pool(&self, mut mesh:Mesh) -> Result< Arc<Mesh>, ProcessError >{
         let ref_mesh=self.pool_meshes.insert(mesh);
 
         Ok(ref_mesh)
     }
 
-    pub fn add_model_to_pool(&self,mut model:Model) -> Result< Arc<Model>, ProcessError >{
+    pub fn add_model_to_pool(&self, mut model:Model) -> Result< Arc<Model>, ProcessError >{
         let ref_model=self.pool_models.insert(model);
 
         Ok(ref_model)
     }
 
-    pub fn add_model(&self,model:Arc<Model>){
+    pub fn add_model(&self, model:Arc<Model>){
         let mut models_guard=self.models.write().unwrap();
 
         let mut cnt=0;
@@ -86,11 +86,24 @@ impl Object{
         }
     }
 
+    //TODO:add removemodel method
+
     pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
         let models_guard=self.models.read().unwrap();
 
         for (_,model) in models_guard.iter() {
+            model.prepare_skeleton(frame)?;
             model.render(frame)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn render_skeletons(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+        let models_guard=self.models.read().unwrap();
+
+        for (_,model) in models_guard.iter() {
+            model.render_skeleton(frame)?;
         }
 
         Ok(())

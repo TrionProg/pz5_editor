@@ -2,6 +2,7 @@ use std;
 use pz5;
 use process;
 use object;
+use storage;
 use glutin;
 use glium;
 use object_pool;
@@ -34,6 +35,8 @@ pub enum RenderTask{
     Error(String),
     LoadLOD(Arc<object::LOD>, Pz5Geometry, String, GeometryType),
     RemoveLOD(Arc<object::LOD>,ID),
+    LoadSkeleton(Arc<object::Model>, Vec<storage::skeleton::Vertex>),
+    RemoveSkeleton(Arc<object::Model>,ID),
 }
 
 pub struct Render{
@@ -100,62 +103,6 @@ impl Render {
     }
 
     fn render_loop(&mut self, to_render_rx:&mpsc::Receiver<RenderTask>) -> Result<(),RenderError>{
-        let vertex_buffer = {
-            #[derive(Copy, Clone)]
-            struct Vertex {
-                position: [f32; 3],
-                normal: [f32; 3],
-            }
-
-            implement_vertex!(Vertex, position, normal);
-
-            use std::mem::transmute;
-
-            glium::VertexBuffer::new(&self.window.display,
-                &[
-                    Vertex { position: [-0.5, -0.5, 0.0], normal: [0.0, 1.0, 0.0] },
-                    Vertex { position: [ 0.0,  0.5, 0.0], normal: [0.0, 0.0, 1.0] },
-                    Vertex { position: [ 0.5, -0.5, 0.0], normal: [1.0, 0.0, 0.0] },
-                ]
-            ).unwrap()
-        };
-
-        // building the index buffer
-        //let index_buffer = glium::IndexBuffer::new(&display, PrimitiveType::TrianglesList,
-        //                                           &[0u16, 1, 2]).unwrap();
-
-        // compiling shaders and linking them together
-        let program = program!(&self.window.display,
-            140 => {
-                vertex: "
-                    #version 140
-                    uniform mat4 persp_matrix;
-                    uniform mat4 view_matrix;
-                    in vec3 position;
-                    in vec3 normal;
-                    out vec3 v_position;
-                    out vec3 v_normal;
-                    void main() {
-                        v_position = position;
-                        v_normal = normal;
-                        gl_Position = persp_matrix * view_matrix * vec4(v_position, 1.0);
-                    }
-                ",
-
-                fragment: "
-                    #version 140
-                    in vec3 v_normal;
-                    out vec4 f_color;
-                    const vec3 LIGHT = vec3(-0.2, 0.8, 0.1);
-                    void main() {
-                        float lum = max(dot(normalize(v_normal), normalize(LIGHT)), 0.0);
-                        vec3 color = (0.3 + 0.7 * lum) * vec3(1.0, 1.0, 1.0);
-                        f_color = vec4(color, 1.0);
-                    }
-                ",
-            }
-        ).unwrap();
-
         let mut next_frame_time=Instant::now();
 
         while !self.state.should_exit() {
@@ -166,7 +113,10 @@ impl Render {
                             RenderTask::Error(_) => {},
                             RenderTask::LoadLOD(lod,geometry,vertex_format,geometry_type) =>
                                 self.storage.load_geometry(lod, geometry, geometry_type, vertex_format, &self.window)?,
-                            RenderTask::RemoveLOD(lod,geometry_id) => {},
+                            RenderTask::RemoveLOD(lod,geometry_id) => {},//TODO:removeLOD
+                            RenderTask::LoadSkeleton(skeleton,geometry) =>
+                                self.storage.load_skeleton(skeleton, geometry, &self.window)?,
+                            RenderTask::RemoveSkeleton(model,skeleton_id) => {},//TODO:removeSkeleton
                         }
                     },
                     Err( mpsc::TryRecvError::Empty ) => break,
@@ -274,8 +224,11 @@ impl Render {
                 self.storage.grid.render(&mut frame, &self.storage.grid_shader)?;
 
                 match *self.object.read().unwrap() {
-                    Some( ref object ) =>
-                        object.render( &mut frame )?,
+                    Some( ref object ) => {
+                        object.render( &mut frame )?;
+                        frame.skeleton_mode();
+                        object.render_skeletons( &mut frame )?;
+                    },
                     None => {},
                 }
 

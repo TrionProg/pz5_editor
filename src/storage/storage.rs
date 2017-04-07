@@ -19,12 +19,16 @@ use super::GridShader;
 use super::ModelShader;
 use super::VBO;
 use super::Geometry;
+use super::SkeletonShader;
+use super::Skeleton;
 
 pub struct Storage{
     pub model_shaders:HashMap<String,Rc<ModelShader>>,
     pub grid_shader:GridShader,
+    pub skeleton_shader:SkeletonShader,
     pub grid:Grid,
     pub geometries:Pool<Geometry,Geometry>,
+    pub skeletons:Pool<Skeleton,Skeleton>,
     //textures:
 }
 
@@ -33,13 +37,16 @@ impl Storage{
         let model_shaders = ModelShader::generate_model_shaders(window)?;
 
         let grid_shader=GridShader::new(window)?;
+        let skeleton_shader=SkeletonShader::new(window)?;
         let grid=Grid::new(10.0, window)?;
 
         let storage=Storage{
             model_shaders:model_shaders,
             grid_shader:grid_shader,
+            skeleton_shader:skeleton_shader,
             grid:grid,
             geometries:Pool::new(),
+            skeletons:Pool::new(),
         };
 
         Ok(storage)
@@ -73,6 +80,29 @@ impl Storage{
         let inserted_geometry=self.geometries.insert(geometry);
 
         *geometry_id_guard=Some(inserted_geometry.id);
+
+        Ok(())
+    }
+
+    pub fn load_skeleton(&mut self,
+        model:Arc<object::Model>,
+        geometry:Vec<super::skeleton::Vertex>,
+        window:&Window,
+    ) -> Result<(),RenderError> {
+        let mut skeleton_id_guard=model.skeleton.write().unwrap();
+
+        match skeleton_id_guard.skeleton_id {
+            Some( ref skeleton_id ) => {self.skeletons.remove(*skeleton_id);},
+            None => {},
+        }
+
+        skeleton_id_guard.skeleton_id=None;
+
+        let mut skeleton=Skeleton::new(geometry,window)?;
+
+        let inserted_skeleton=self.skeletons.insert(skeleton);
+
+        skeleton_id_guard.skeleton_id=Some(inserted_skeleton.id);
 
         Ok(())
     }

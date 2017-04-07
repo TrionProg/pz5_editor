@@ -37,6 +37,7 @@ impl<'a> RenderFrame<'a>{
                 write: true,
                 .. Default::default()
             },
+            line_width: Some(1.0),
             .. Default::default()
         };
 
@@ -49,6 +50,18 @@ impl<'a> RenderFrame<'a>{
         };
 
         Some( frame )
+    }
+
+    pub fn skeleton_mode(&mut self) {
+        self.draw_parameters = DrawParameters {
+            depth: glium::Depth {
+                test: glium::DepthTest::Overwrite,
+                write: true,
+                .. Default::default()
+            },
+            line_width: Some(4.0),
+            .. Default::default()
+        };
     }
 
     pub fn finish(self){//TODO:Error

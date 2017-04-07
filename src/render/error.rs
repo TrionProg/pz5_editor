@@ -10,10 +10,13 @@ pub enum RenderError{
     GliumCreationError(Box<glium::GliumCreationError<glium::glutin::CreationError>>),
     ProgramCreationError(Box<glium::program::ProgramCreationError>),
     ProgramChooserCreationError(Box<glium::program::ProgramChooserCreationError>),
-    BufferCreationError(Box<glium::vertex::BufferCreationError>),
+    VertexBufferCreationError(Box<glium::vertex::BufferCreationError>),
+    BufferCreationError(Box<glium::buffer::BufferCreationError>),
     NoShaderProgram(String),
     DrawError(Box<glium::DrawError>),
     NoGeometryWithID(ID),
+    NoSkeletonWithID(ID),
+    NoSkeleton,
 }
 
 
@@ -37,6 +40,12 @@ impl From<glium::program::ProgramChooserCreationError> for RenderError {
 
 impl From<glium::vertex::BufferCreationError> for RenderError {
     fn from(buffer_creation_error: glium::vertex::BufferCreationError) -> Self{
+        RenderError::VertexBufferCreationError( Box::new(buffer_creation_error) )
+    }
+}
+
+impl From<glium::buffer::BufferCreationError> for RenderError {
+    fn from(buffer_creation_error: glium::buffer::BufferCreationError) -> Self{
         RenderError::BufferCreationError( Box::new(buffer_creation_error) )
     }
 }
@@ -57,9 +66,12 @@ impl std::fmt::Display for RenderError{
             RenderError::ProgramCreationError(ref e) => write!(f, "Can not create shader program. Error:{}", e),
             RenderError::ProgramChooserCreationError(ref e) => write!(f, "Can not choose shader program. Error:{}", e),
             RenderError::NoShaderProgram(ref full_vertex_format) => write!(f, "No shader program for \"{}\"", full_vertex_format),
+            RenderError::VertexBufferCreationError(ref e) => write!(f, "Can not create vertex buffer:{}", e),
             RenderError::BufferCreationError(ref e) => write!(f, "Can not create buffer:{}", e),
             RenderError::DrawError(ref e) => write!(f, "Can not draw:{}", e),
             RenderError::NoGeometryWithID(id) => write!(f, "No geometry with id {}",id),
+            RenderError::NoSkeletonWithID(id) => write!(f, "No skeleton with id {}",id),
+            RenderError::NoSkeleton => write!(f, "No skeleton"),
         }
     }
 }

@@ -22,6 +22,7 @@ use RenderSender;
 use RenderTask;
 
 use location::Location;
+use location::calculate_matrix;
 
 use super::LOD;
 //use ObjectFrame;
@@ -211,7 +212,7 @@ impl Mesh{
 
     pub fn calc_matrix(&self) {
         let attrib_guard=self.attrib.read().unwrap();
-        *self.matrix.lock().unwrap()=Matrix4::from(attrib_guard.location);
+        *self.matrix.lock().unwrap()=calculate_matrix(&attrib_guard.location);
     }
 
     //rebuild on vf change
