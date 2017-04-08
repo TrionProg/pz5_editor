@@ -46,14 +46,21 @@ impl Skeleton {
         Ok(())
     }
 
-    pub fn build_geometry(&self) -> Vec<storage::skeleton::Vertex> {
-        let mut buffer=Vec::with_capacity(self.bones.len()*2);
+    pub fn build_geometry(&self) -> (Vec<storage::skeleton::Vertex>,Vec<storage::skeleton::Vertex>) {
+        let mut joints_buffer=Vec::with_capacity(self.bones.len());
+        let mut bones_buffer=Vec::with_capacity(self.bones.len()*2);
 
-        for i in 0..self.bones.len() {
-            self.bones[i].build_geometry(i,&mut buffer);
+        for (i,bone) in self.bones.iter().enumerate() {
+            bone.build_geometry(i,&mut joints_buffer,&mut bones_buffer);
         }
 
-        buffer
+        for i in joints_buffer.iter(){
+            println!("{} {}",i.bone_index, i.color);
+        }
+
+        //bones_buffer.truncate(12);
+
+        (joints_buffer, bones_buffer)
     }
 
     fn get_skeleton_from_storage<'a>(&self, frame:&'a RenderFrame ) -> Result<&'a storage::Skeleton,RenderError> {
@@ -126,13 +133,15 @@ impl Bone {
         final_bone_matrix
     }
 
-    pub fn build_geometry(&self, i:usize, buffer:&mut Vec<storage::skeleton::Vertex>){
+    pub fn build_geometry(&self, i:usize, joints_buffer:&mut Vec<storage::skeleton::Vertex>, bones_buffer:&mut Vec<storage::skeleton::Vertex>){
         let parent_index=match self.parent_index {
             Some( parent_index ) => parent_index,
             None => 0,
         };
 
-        buffer.push( storage::skeleton::Vertex::new(parent_index as u32,0.3) );
-        buffer.push( storage::skeleton::Vertex::new(i as u32,0.7) );
+        joints_buffer.push( storage::skeleton::Vertex::new(i as u32,0.3) );
+
+        bones_buffer.push( storage::skeleton::Vertex::new(parent_index as u32,0.3) );
+        bones_buffer.push( storage::skeleton::Vertex::new(i as u32,0.7) );
     }
 }

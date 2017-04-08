@@ -86,7 +86,8 @@ impl Storage{
 
     pub fn load_skeleton(&mut self,
         model:Arc<object::Model>,
-        geometry:Vec<super::skeleton::Vertex>,
+        joints_geometry:Vec<super::skeleton::Vertex>,
+        bones_geometry:Vec<super::skeleton::Vertex>,
         window:&Window,
     ) -> Result<(),RenderError> {
         let mut skeleton_id_guard=model.skeleton.write().unwrap();
@@ -98,7 +99,7 @@ impl Storage{
 
         skeleton_id_guard.skeleton_id=None;
 
-        let mut skeleton=Skeleton::new(geometry,window)?;
+        let mut skeleton=Skeleton::new(joints_geometry, bones_geometry, window)?;
 
         let inserted_skeleton=self.skeletons.insert(skeleton);
 

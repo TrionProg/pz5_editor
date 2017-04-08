@@ -29,7 +29,7 @@ impl SkeletonShader{
             out float v_color;
             void main() {
                 v_color=color;
-                gl_Position = perspective_matrix * camera_matrix * bone_matrices[bone_index] * vec4(0.0,0.0,0.0,1.0);
+                gl_Position = perspective_matrix * camera_matrix * bone_matrices[bone_index]/2 * vec4(0.0,0.0,0.0,1.0);
             }
         ";
 

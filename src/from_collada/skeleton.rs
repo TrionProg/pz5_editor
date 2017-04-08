@@ -35,21 +35,36 @@ pub fn read_skeleton(scene:&Scene) -> Result<(Skeleton,ZeroFrame), Error> {
     let multiple_skeletons=scene.skeletons.len()>1;
 
     for (_,skeleton_node) in scene.skeletons.iter() {
-        let mut index_offset=bones.len();
-
         let collada_skeleton=&skeleton_node.joined;
-        //TODO:what about position of skeleton? xyz of matrix is 0? but what about rotation? Add bone with name of skeleton?
+
+        let location = match Location::from_collada(&skeleton_node.location) {
+            Ok( loc ) => loc,
+            Err( _ ) => return Err( Error::SkeletonDifferentSizes( skeleton_node.name.clone() )),
+        };
+
+        let bone=Bone::new(
+            skeleton_node.name.clone(),
+            Some(0),
+
+            location,
+        );
+
+        let skeleton_bone_index=bones.len();
+        bones.push( bone );
+        zero_frame_bones.push( location );
+
+        let mut index_offset=bones.len();
 
         for collada_bone in collada_skeleton.bones_array.iter() {
             let bone_name=if multiple_skeletons {
-                format!("{}_{}", skeleton_node.id, collada_bone.name)
+                format!("{}_{}", skeleton_node.name, collada_bone.name)
             }else{
                 collada_bone.name.clone()
             };
 
             let parent=match collada_bone.parent {
                 Some( bone_index ) => index_offset + bone_index,
-                None => 0,
+                None => skeleton_bone_index,
             };
 
             let location = match Location::from_collada(&collada_bone.location) {

@@ -60,6 +60,7 @@ impl<'a> RenderFrame<'a>{
                 .. Default::default()
             },
             line_width: Some(4.0),
+            point_size: Some(6.0),
             .. Default::default()
         };
     }

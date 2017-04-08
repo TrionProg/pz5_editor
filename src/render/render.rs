@@ -35,7 +35,7 @@ pub enum RenderTask{
     Error(String),
     LoadLOD(Arc<object::LOD>, Pz5Geometry, String, GeometryType),
     RemoveLOD(Arc<object::LOD>,ID),
-    LoadSkeleton(Arc<object::Model>, Vec<storage::skeleton::Vertex>),
+    LoadSkeleton(Arc<object::Model>, Vec<storage::skeleton::Vertex>, Vec<storage::skeleton::Vertex>),
     RemoveSkeleton(Arc<object::Model>,ID),
 }
 
@@ -114,8 +114,8 @@ impl Render {
                             RenderTask::LoadLOD(lod,geometry,vertex_format,geometry_type) =>
                                 self.storage.load_geometry(lod, geometry, geometry_type, vertex_format, &self.window)?,
                             RenderTask::RemoveLOD(lod,geometry_id) => {},//TODO:removeLOD
-                            RenderTask::LoadSkeleton(skeleton,geometry) =>
-                                self.storage.load_skeleton(skeleton, geometry, &self.window)?,
+                            RenderTask::LoadSkeleton(skeleton,joints_geometry, bones_geometry) =>
+                                self.storage.load_skeleton(skeleton, joints_geometry, bones_geometry, &self.window)?,
                             RenderTask::RemoveSkeleton(model,skeleton_id) => {},//TODO:removeSkeleton
                         }
                     },

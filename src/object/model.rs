@@ -145,13 +145,13 @@ impl Model{
 
         for (scene_name, scene) in document.scenes.iter(){
             let (skeleton,zero_frame)=read_skeleton(scene)?;
-            let skeleton_geometry=skeleton.build_geometry();
+            let (joints_geometry, bones_geometry)=skeleton.build_geometry();
 
             let virtual_meshes=VirtualModel::generate_virtual_meshes(&document, scene)?;//TODO: generate model_name for scene
 
             let model=Model::build(&document, &virtual_meshes, skeleton, zero_frame, model_name.clone(), object, to_render_tx)?;
 
-            to_render_tx.send( RenderTask::LoadSkeleton(model.clone(),skeleton_geometry) )?;
+            to_render_tx.send( RenderTask::LoadSkeleton(model.clone(), joints_geometry, bones_geometry) )?;
 
             object.add_model(model);
         }
