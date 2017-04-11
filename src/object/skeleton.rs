@@ -33,11 +33,54 @@ impl Skeleton {
 
         self.animated=false;
 
+        //self.bones[1].location.scale.0=1.5;
+
+        //self.bones[11].location.position.z=2.0;
+        //self.bones[11].location.position.y=-0.5;
+
         for i in 0..self.bones.len() {
+            println!("{:?} {:?}",self.bones[i].location.position,self.bones[i].location.rotation);
+            use cgmath::SquareMatrix;
+            use cgmath::Vector3;
+            use cgmath::EuclideanSpace;
+
+            let m=
+            Matrix4::from_translation(self.bones[i].location.position.to_vec())*
+            Matrix4::from(self.bones[i].location.rotation)*
+                    //Matrix4::from_translation(self.bones[i].location.position.to_vec())*
+                    Matrix4::from_scale(self.bones[i].location.scale.0);
+
+            let m=match self.bones[i].parent_index {
+                Some( parent_index ) => self.matrices[parent_index] * m,
+                _ => m,
+            };
+
+            self.matrices[i]=m;//*Matrix4::from(self.bones[i].location.rotation);
+            /*
             let bone_matrix=self.bones[i].calculate_matrix(&self.matrices);
             use cgmath::SquareMatrix;
             self.matrices[i]=bone_matrix;
+            */
+
+            println!("{} {:?}",i,self.bones[i].parent_index);
         }
+        /*
+        //self.bones[1].location.position.z=1.0;
+
+        println!("{:?} {:?}",self.bones[11].location.position,self.bones[11].location.rotation);
+        println!("{:?} {:?}",self.bones[3].location.position,self.bones[3].location.rotation);
+        println!("{:?} {:?}",self.bones[2].location.position,self.bones[2].location.rotation);
+        println!("{:?}",self.matrices[11]);
+        println!("{:?}",self.matrices[3]);
+        println!("{:?}",self.matrices[2]);
+        use cgmath::Vector4;
+        println!("{:?}",self.matrices[11]*Vector4::new(0.0,0.0,0.0,1.0));
+        println!("{:?}",self.matrices[3]*Vector4::new(0.0,0.0,0.0,1.0));
+        println!("{:?}",self.matrices[9]*Vector4::new(0.0,0.0,0.0,1.0));
+        println!("{:?}",self.matrices[10]*Vector4::new(0.0,0.0,0.0,1.0));
+        println!("{:?}",self.matrices[2]*Vector4::new(0.0,0.0,0.0,1.0));
+        */
+
 
         let skeleton=self.get_skeleton_from_storage(frame)?;
 
@@ -59,6 +102,8 @@ impl Skeleton {
         }
 
         //bones_buffer.truncate(12);
+        //joints_buffer[11].bone_index=3;
+        //joints_buffer[11].color=0.0;
 
         (joints_buffer, bones_buffer)
     }

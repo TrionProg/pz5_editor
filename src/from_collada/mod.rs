@@ -13,6 +13,9 @@ pub use self::virtual_mesh::VirtualMesh;
 pub mod virtual_model;
 pub use self::virtual_model::VirtualModel;
 
+pub mod virtual_scene;
+pub use self::virtual_scene::VirtualInstance;
+
 pub mod skeleton;
 pub use self::skeleton::read_skeleton;
 

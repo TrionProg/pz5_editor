@@ -144,6 +144,93 @@ impl Model{
         let document=VirtualModel::parse_collada(file_name)?;
 
         for (scene_name, scene) in document.scenes.iter(){
+            let mut virtual_models = VirtualModel::generate_virtual_models(&document, scene)?;
+            VirtualModel::check_and_sort_virtual_models(&mut virtual_models)?;
+            let (virtual_models, virtual_instances) = VirtualModel::separate_to_models_and_instances(virtual_models)?;
+            VirtualModel::select_names_of_virtual_models(&virtual_models);
+
+            println!("Virtual models");
+            for vm in virtual_models.iter() {
+                println!("{:?}",vm.borrow_mut().best_name);
+            }
+
+            println!("Virtual instances");
+            for vi in virtual_instances.iter() {
+                println!("{}",vi.name);
+            }
+        }
+
+        /*
+
+        document.print();
+
+        println!("SKINS");
+
+        use location::*;
+        for (_,skin) in document.skins.iter() {
+            println!("{}",skin.geometry_id);
+
+            let location = match Location::from_collada(&skin.bind_location) {
+                Ok( loc ) => loc,
+                Err( _ ) => panic!("aaa"),//return Err( Error::SkeletonDifferentSizes( skeleton_node.name.clone() )),
+            };
+
+            println!("{:?} {:?} /", location.position, location.rotation);
+
+            let bone_matrixes=skin.additional_sources.get(&String::from("INV_BIND_MATRIX")).unwrap().layers.get(&String::from("location")).unwrap();
+            let bone_names=skin.additional_sources.get(&String::from("JOINT")).unwrap().layers.get(&String::from("bone_name")).unwrap();
+
+            let bone_names=match *bone_names {
+                collada::SourceLayer::Name( ref n ) => n,
+                _ => panic!("aa"),
+            };
+
+            match *bone_matrixes {
+                collada::SourceLayer::Location( ref matrices ) => {
+                    for (m,n) in matrices.iter().zip(bone_names.iter()) {
+                        let location = match Location::from_collada(m) {
+                            Ok( loc ) => loc,
+                            Err( _ ) => panic!("aaa"),//return Err( Error::SkeletonDifferentSizes( skeleton_node.name.clone() )),
+                        };
+
+                        println!("{}:{:?} {:?}", n,location.position, location.rotation);
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        let skene=&document.scenes.iter().next().unwrap().1;
+        println!("SKELETONS");
+
+
+
+        for (_,skeleton_node) in skene.skeletons.iter() {
+            for (_,bone) in skeleton_node.joined.bones.iter() {
+                let location = match Location::from_collada(&bone.location) {
+                    Ok( loc ) => loc,
+                    Err( _ ) => panic!("aaa"),//return Err( Error::SkeletonDifferentSizes( skeleton_node.name.clone() )),
+                };
+
+                println!("{}: {:?} {:?}", bone.name, location.position, location.rotation);
+            }
+        }
+
+        println!("GEOMETRYES");
+
+        for (_,geometry_node) in skene.geometries.iter() {
+            println!("{}",geometry_node.joined.id);
+
+            let location = match Location::from_collada(&geometry_node.location) {
+                Ok( loc ) => loc,
+                Err( _ ) => panic!("aaa"),//return Err( Error::SkeletonDifferentSizes( skeleton_node.name.clone() )),
+            };
+
+            println!("{:?} {:?}", location.position, location.rotation);
+        }
+        */
+        /*
+        for (scene_name, scene) in document.scenes.iter(){
             let (skeleton,zero_frame)=read_skeleton(scene)?;
             let (joints_geometry, bones_geometry)=skeleton.build_geometry();
 
@@ -155,6 +242,7 @@ impl Model{
 
             object.add_model(model);
         }
+        */
 
         Ok(())
     }

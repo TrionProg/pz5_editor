@@ -13,6 +13,7 @@ pub struct VirtualMesh<'a>{
 
     pub lods:Vec<VirtualLOD<'a>>,
     pub geometry_type:pz5::GeometryType,
+    pub controller:collada::Controller,
 }
 
 impl<'a> VirtualMesh<'a>{
