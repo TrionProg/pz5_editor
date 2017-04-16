@@ -1,8 +1,8 @@
 use std;
 use pz5;
 use glium;
-use render;
 use cgmath;
+use render;
 
 use std::sync::Arc;
 use std::sync::{Mutex,RwLock};
@@ -16,19 +16,13 @@ use cgmath::Matrix4;
 
 use object_pool::multithreaded_growable::{ID,Slot};
 
-use ProcessError;
-use Object;
-use RenderSender;
-use RenderTask;
+use super::Error;
+use super::Storage;
 
 use location::Location;
 use location::calculate_matrix;
 
 use super::LOD;
-//use ObjectFrame;
-
-use RenderError;
-use RenderFrame;
 
 pub struct MeshAttrib{
     pub name:String,
@@ -73,8 +67,8 @@ impl Mesh{
 
         location:Location,
 
-        object:&Object
-    ) -> Result< Arc<Self>, ProcessError >{
+        object:&Storage
+    ) -> Result< Arc<Self>, Error >{
         use cgmath::SquareMatrix;
 
         let mesh=Mesh{
@@ -109,9 +103,9 @@ impl Mesh{
 
     pub fn build(
         virtual_mesh:&VirtualMesh,
-        object:&Object,
-        to_render_tx:&RenderSender
-    ) -> Result<Arc<Self>,ProcessError> {
+        object:&Storage,
+        to_render_tx:&render::Sender
+    ) -> Result<Arc<Self>,Error> {
         let mesh=Mesh::new(
             virtual_mesh.name.clone(),
             virtual_mesh.vertex_format.clone(),
@@ -132,7 +126,7 @@ impl Mesh{
         Ok(mesh)
     }
 
-    pub fn add_lod(&self, lod:Arc<LOD>, to_render_tx:&RenderSender) -> Result<(),ProcessError>{
+    pub fn add_lod(&self, lod:Arc<LOD>, to_render_tx:&render::Sender) -> Result<(),Error>{
         *lod.mesh.lock().unwrap()=Some(self.id);
 
         let mut lods_guard=self.lods.write().unwrap();
@@ -155,17 +149,17 @@ impl Mesh{
         };
 
 
-        to_render_tx.send( RenderTask::LoadLOD(lod,pz5_geometry,to_vertex_format,to_geometry_type) )?;
+        to_render_tx.send( render::Task::LoadLOD(lod,pz5_geometry,to_vertex_format,to_geometry_type) )?;
 
         Ok(())
     }
 
-    pub fn remove_lod(&self, lod:&Arc<LOD>, to_render_tx:&RenderSender) -> Result<(),ProcessError> {
+    pub fn remove_lod(&self, lod:&Arc<LOD>, to_render_tx:&render::Sender) -> Result<(),Error> {
         *lod.mesh.lock().unwrap()=None;
 
         match *lod.geometry_id.lock().unwrap() {
             Some( ref geometry_id ) =>
-                to_render_tx.send( RenderTask::RemoveLOD(lod.clone(),*geometry_id) )?,
+                to_render_tx.send( render::Task::RemoveLOD(lod.clone(),*geometry_id) )?,
             None => {},
         }
 
@@ -189,7 +183,7 @@ impl Mesh{
         Ok(())
     }
 
-    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         {
             let attrib=self.attrib.read().unwrap();
 
@@ -219,7 +213,7 @@ impl Mesh{
 
     /*
 
-    pub fn build_render_lods(&self, to_render_tx:&RenderSender) -> Result<(),ProcessError> {
+    pub fn build_render_lods(&self, to_render_tx:&render::Sender) -> Result<(),Error> {
         let vertex_format=self.adapt_vertex_format()?;
 
         let lods_guard=self.lods.read().unwrap();
@@ -230,7 +224,7 @@ impl Mesh{
     }
     */
 
-    pub fn adapt_vertex_format(&self) -> Result<String,ProcessError> {
+    pub fn adapt_vertex_format(&self) -> Result<String,Error> {
         //Ok( self.vertex_format.clone() )
         Ok(String::from("VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)"))
     }

@@ -1,16 +1,15 @@
 use std;
 use glium;
 
-use RenderError;
-use Window;
-
+use super::Error;
+use super::Window;
 
 pub struct SkeletonShader{
     pub glium_program:glium::Program,
 }
 
 impl SkeletonShader{
-    pub fn new(window:&Window) -> Result<Self,RenderError> {
+    pub fn new(window:&Window) -> Result<Self,Error> {
         let vertex_code = "
             #version 140
 
@@ -23,13 +22,13 @@ impl SkeletonShader{
             };
 
 
-            //in vec3 position;
-            in uint bone_index;
+            in vec3 position;
             in float color;
+            in uint bone_index;
             out float v_color;
             void main() {
                 v_color=color;
-                gl_Position = perspective_matrix * camera_matrix * bone_matrices[bone_index] * vec4(0.0,0.0,0.0,1.0);
+                gl_Position = perspective_matrix * camera_matrix * bone_matrices[bone_index] * vec4(position,1.0);
             }
         ";
 

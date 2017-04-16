@@ -190,7 +190,7 @@
         <instance_geometry url="#Cylinder-mesh" name="Laterne1"/>
       </node>
       <node id="Laterne2" name="Laterne2" type="NODE">
-        <matrix sid="transform">1 0 0 -4.169987 0 1 0 -2.317957 0 0 1 0.2742705 0 0 0 1</matrix>
+        <matrix sid="transform">1 0 0 -4.169987 0 1 0 -2.317957 0 0 1 1.373197 0 0 0 1</matrix>
         <instance_geometry url="#Cylinder-mesh" name="Laterne2"/>
       </node>
       <node id="Laterne3" name="Laterne3" type="NODE">

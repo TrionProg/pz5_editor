@@ -1,5 +1,6 @@
 use std;
 use glium;
+use render;
 
 use std::sync::Arc;
 use std::sync::{Mutex,RwLock};
@@ -12,16 +13,13 @@ use std::sync::mpsc;
 use object_pool::multithreaded_growable::Pool as MTPool;
 use object_pool::multithreaded_growable::{ID,Slot};
 
-use ProcessError;
-use RenderSender;
-use RenderError;
-use RenderFrame;
+use super::Error;
 
 use super::LOD;
 use super::Mesh;
 use super::Model;
 
-pub struct Object{
+pub struct Storage{
     pub models: RwLock< HashMap<String, Arc<Model> > >,
     pub pool_lods: MTPool<LOD>,
     pub pool_meshes: MTPool<Mesh>,
@@ -29,9 +27,9 @@ pub struct Object{
     pub is_gui: bool,
 }
 
-impl Object{
+impl Storage{
     pub fn empty(is_gui:bool) -> Self{
-        Object{
+        Storage{
             models: RwLock::new( HashMap::new() ),
             pool_lods: MTPool::new(),
             pool_meshes: MTPool::new(),
@@ -41,24 +39,24 @@ impl Object{
     }
 
 
-    pub fn include_collada_model(&self, file_name:&Path, to_render_tx:&RenderSender) -> Result<(),ProcessError> {
+    pub fn include_collada_model(&self, file_name:&Path, to_render_tx:&render::Sender) -> Result<(),Error> {
         Model::load_from_collada(file_name,self,to_render_tx)
     }
 
 
-    pub fn add_lod_to_pool(&self, lod:LOD) -> Result< Arc<LOD>, ProcessError >{
+    pub fn add_lod_to_pool(&self, lod:LOD) -> Result< Arc<LOD>, Error >{
         let ref_lod=self.pool_lods.insert(lod);
 
         Ok(ref_lod)
     }
 
-    pub fn add_mesh_to_pool(&self, mut mesh:Mesh) -> Result< Arc<Mesh>, ProcessError >{
+    pub fn add_mesh_to_pool(&self, mut mesh:Mesh) -> Result< Arc<Mesh>, Error >{
         let ref_mesh=self.pool_meshes.insert(mesh);
 
         Ok(ref_mesh)
     }
 
-    pub fn add_model_to_pool(&self, mut model:Model) -> Result< Arc<Model>, ProcessError >{
+    pub fn add_model_to_pool(&self, mut model:Model) -> Result< Arc<Model>, Error >{
         let ref_model=self.pool_models.insert(model);
 
         Ok(ref_model)
@@ -88,7 +86,7 @@ impl Object{
 
     //TODO:add removemodel method
 
-    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         let models_guard=self.models.read().unwrap();
 
         for (_,model) in models_guard.iter() {
@@ -99,7 +97,7 @@ impl Object{
         Ok(())
     }
 
-    pub fn render_skeletons(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render_skeletons(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         let models_guard=self.models.read().unwrap();
 
         for (_,model) in models_guard.iter() {

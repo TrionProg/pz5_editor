@@ -1,15 +1,12 @@
 use std;
 use glium;
 use cgmath;
+use render;
 
 use cgmath::{Vector2,Vector3,Point3,PerspectiveFov,Matrix4,Basis3,Rotation3};
 use cgmath::{vec2,vec3,rad};
 use glutin::ElementState;
 use glutin::MouseScrollDelta;
-
-use RenderError;
-use Window;
-use Storage;
 
 use gui::Input;
 use super::Viewport;
@@ -24,7 +21,7 @@ pub struct Camera{
 }
 
 impl Camera{
-    pub fn new(window:&Window) -> Result<Self,RenderError>{
+    pub fn new(window:&render::Window) -> Result<Self,render::Error>{
         use cgmath::SquareMatrix;
 
         let mut camera=Camera{
@@ -41,7 +38,7 @@ impl Camera{
         Ok( camera )
     }
 
-    pub fn resize(&mut self, window:&Window) {
+    pub fn resize(&mut self, window:&render::Window) {
         self.viewport=Viewport::configure(window);
     }
 
@@ -70,7 +67,7 @@ impl Camera{
         self.calc_matrix();
     }
 
-    pub fn on_mouse_wheel(&mut self, storage:&mut Storage, window:&Window, delta:MouseScrollDelta) {
+    pub fn on_mouse_wheel(&mut self, storage:&mut render::Storage, window:&render::Window, delta:MouseScrollDelta) {
         let scroll_y=match delta {
             MouseScrollDelta::LineDelta(x,y) =>
                 y,

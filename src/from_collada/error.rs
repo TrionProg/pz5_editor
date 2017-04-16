@@ -16,6 +16,7 @@ pub enum Error{
     SkeletonDifferentSizes(String),
     MeshDifferentSizes(String),
     DuplicateBone(String),
+    MeshLODLocationsMismatch(String,String),
     Other(String),
 }
 
@@ -34,6 +35,7 @@ impl std::fmt::Display for Error{
             Error::SkeletonDifferentSizes(ref skeleton_name) => write!(f, "Skeleton \"{}\", has different sizes", skeleton_name),
             Error::MeshDifferentSizes(ref mesh_name) => write!(f, "Mesh \"{}\", has different sizes", mesh_name),
             Error::DuplicateBone(ref bone_name) => write!(f, "Duplicate bone \"{}\", check name of bone and skeleton", bone_name),
+            Error::MeshLODLocationsMismatch(ref mesh_name, ref lod_name) => write!(f, "Location of lod \"{}\" mismatch with location of mesh \"{}\"", lod_name, mesh_name),
             Error::Other(ref message) => write!(f, "{}", message),
         }
     }

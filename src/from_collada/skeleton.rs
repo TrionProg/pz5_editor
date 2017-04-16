@@ -1,3 +1,4 @@
+/*
 use std;
 use pz5;
 use collada;
@@ -91,3 +92,4 @@ pub fn read_skeleton(scene:&Scene) -> Result<(Skeleton,ZeroFrame), Error> {
 
     Ok(( Skeleton::new( bones ), ZeroFrame::new(zero_frame_bones) ))
 }
+*/

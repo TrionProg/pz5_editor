@@ -8,11 +8,11 @@ use glium::Surface;
 
 use cgmath::Matrix4;
 
-use Window;
+use super::Window;
+use super::Storage;
 use Camera;
-use Storage;
 
-pub struct RenderFrame<'a>{
+pub struct Frame<'a>{
     pub target:glium::Frame,
     pub perspective_matrix:Matrix4<f32>,//[[f32; 4]; 4],
     //pub view_matrix:[[f32; 4]; 4],
@@ -21,7 +21,7 @@ pub struct RenderFrame<'a>{
     pub storage:&'a Storage,
 }
 
-impl<'a> RenderFrame<'a>{
+impl<'a> Frame<'a>{
     pub fn new( camera:&Camera, window:&Window, storage:&'a Storage ) -> Option<Self> {
         let (perspective_matrix, camera_matrix) = match camera.get_matrixes() {
             Some( matrixes ) => matrixes,
@@ -41,7 +41,7 @@ impl<'a> RenderFrame<'a>{
             .. Default::default()
         };
 
-        let frame=RenderFrame{
+        let frame=Frame{
             target:target,
             perspective_matrix:perspective_matrix,
             camera_matrix:camera_matrix,

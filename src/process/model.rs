@@ -2,6 +2,7 @@ use std;
 use pz5;
 use glium;
 use collada;
+use render;
 
 use std::sync::Arc;
 use std::sync::{Mutex,RwLock};
@@ -15,22 +16,15 @@ use from_collada::VirtualMesh;
 
 use object_pool::multithreaded_growable::{ID,Slot};
 
-use from_collada::read_skeleton;
+use super::Error;
 
-use ProcessError;
-use Object;
-use RenderSender;
-
+use super::Storage;
 use super::LOD;
 use super::Mesh;
 use super::Geometry;
 use super::Skeleton;
 use super::ZeroFrame;
 use super::Animation;
-
-use RenderError;
-use RenderFrame;
-use RenderTask;
 
 pub struct ModelAttrib{
     pub name:String,
@@ -69,8 +63,8 @@ impl Model{
         skeleton:Skeleton,
         zero_frame:ZeroFrame,
 
-        object:&Object
-    ) -> Result< Arc<Self>, ProcessError >{
+        object:&Storage
+    ) -> Result< Arc<Self>, Error >{
         let model=Model{
             id:ID::zeroed(),
 
@@ -125,21 +119,21 @@ impl Model{
 
     //remove_mesh
 
-    pub fn get_model_name(file_name:&Path) -> Result<String,ProcessError>{
+    pub fn get_model_name(file_name:&Path) -> Result<String,Error>{
         let model_name=match file_name.file_name() {
             Some( file_name_os_str ) => {
                 match file_name_os_str.to_str() {
                     Some( file_name_str ) => String::from(file_name_str),//TODO:remove extension
-                    None => return Err( ProcessError::FileNameNotUTF ),
+                    None => return Err( Error::FileNameNotUTF ),
                 }
             },
-            None => return Err( ProcessError::NoFileName ),
+            None => return Err( Error::NoFileName ),
         };
 
         Ok(model_name)
     }
 
-    pub fn load_from_collada(file_name:&Path, object:&Object, to_render_tx:&RenderSender) -> Result<(),ProcessError>{
+    pub fn load_from_collada(file_name:&Path, object:&Storage, to_render_tx:&render::Sender) -> Result<(),Error>{
         let model_name=Self::get_model_name(file_name)?;
         let document=VirtualModel::parse_collada(file_name)?;
 
@@ -147,16 +141,25 @@ impl Model{
             let mut virtual_models = VirtualModel::generate_virtual_models(&document, scene)?;
             VirtualModel::check_and_sort_virtual_models(&mut virtual_models)?;
             let (virtual_models, virtual_instances) = VirtualModel::separate_to_models_and_instances(virtual_models)?;
-            VirtualModel::select_names_of_virtual_models(&virtual_models);
 
             println!("Virtual models");
             for vm in virtual_models.iter() {
-                println!("{:?}",vm.borrow_mut().best_name);
+                let vm=vm.borrow();
+                println!("{:?}",vm.best_name);
+                for (oldname,mesh) in vm.meshes.iter() {
+                    println!("{} - {}",oldname, mesh.name)
+                }
             }
 
             println!("Virtual instances");
             for vi in virtual_instances.iter() {
                 println!("{}",vi.name);
+            }
+
+            for virtual_model in virtual_models.iter() {
+                let model=Model::from_virtual(&document, &virtual_model.borrow(), object, to_render_tx)?;
+
+                object.add_model(model);
             }
         }
 
@@ -238,8 +241,6 @@ impl Model{
 
             let model=Model::build(&document, &virtual_meshes, skeleton, zero_frame, model_name.clone(), object, to_render_tx)?;
 
-            to_render_tx.send( RenderTask::LoadSkeleton(model.clone(), joints_geometry, bones_geometry) )?;
-
             object.add_model(model);
         }
         */
@@ -247,17 +248,16 @@ impl Model{
         Ok(())
     }
 
-    pub fn build(
+    pub fn from_virtual(
         document:&collada::Document,
-        virtual_meshes:&HashMap<String,VirtualMesh>,
-        skeleton:Skeleton,
-        zero_frame:ZeroFrame,
-        model_name:String,
-        object:&Object,
-        to_render_tx:&RenderSender
-    ) -> Result<Arc<Self>,ProcessError> {
+        virtual_model:&VirtualModel,
+        object:&Storage,
+        to_render_tx:&render::Sender
+    ) -> Result<Arc<Self>,Error> {
+        let (skeleton, zero_frame, joints_geometry, bones_geometry) = Skeleton::from_virtual(&virtual_model.skeleton, &virtual_model.location)?;
+
         let model=Model::new(
-            model_name,
+            virtual_model.get_name().clone(),
             String::new(),
 
             skeleton,
@@ -266,21 +266,23 @@ impl Model{
             object
         )?;
 
-        for (_,virtual_mesh) in virtual_meshes.iter(){
+        for (_,virtual_mesh) in virtual_model.meshes.iter(){
             let mesh=Mesh::build(virtual_mesh,object,to_render_tx)?;
 
             model.add_mesh(mesh);
         }
 
+        to_render_tx.send( render::Task::LoadSkeleton(model.clone(), joints_geometry, bones_geometry) )?;
+
         Ok(model)
     }
 
-    pub fn prepare_skeleton(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn prepare_skeleton(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         let mut skeleton_guard=self.skeleton.write().unwrap();
         skeleton_guard.calculate_matrices(frame)
     }
 
-    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         let skeleton_guard=self.skeleton.read().unwrap();
 
         {
@@ -300,7 +302,7 @@ impl Model{
         Ok(())
     }
 
-    pub fn render_skeleton(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render_skeleton(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         let skeleton_guard=self.skeleton.read().unwrap();
 
         {

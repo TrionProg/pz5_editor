@@ -1,15 +1,15 @@
 use std;
 use glium;
 
-use RenderError;
-use Window;
+use super::Error;
+use super::Window;
 
 pub struct GridShader{
     pub glium_program:glium::Program,
 }
 
 impl GridShader{
-    pub fn new(window:&Window) -> Result<Self,RenderError> {
+    pub fn new(window:&Window) -> Result<Self,Error> {
         let vertex_code = "
             #version 140
             uniform mat4 perspective_matrix;

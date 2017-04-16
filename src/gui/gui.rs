@@ -1,12 +1,11 @@
 use std;
 use glium;
 use glutin;
+use render;
 
 use glutin::ElementState;
 use glutin::MouseButton;
 
-use RenderError;
-use Window;
 use super::Input;
 
 pub struct GUI{
@@ -14,7 +13,7 @@ pub struct GUI{
 }
 
 impl GUI{
-    pub fn new(window:&Window) -> Result<Self,RenderError> {
+    pub fn new(window:&render::Window) -> Result<Self,render::Error> {
         let gui=GUI{
             input:Input::new(),
         };
@@ -93,7 +92,7 @@ impl GUI {
         Ok(())
     }
 /*
-    pub fn get_object_frame(&self) -> Result<ObjectFrame, RenderError>{
+    pub fn get_object_frame(&self) -> Result<ObjectFrame, render::Error>{
         self.camera.update(window_width, window_height, &self.input);
         let (perspective_matrix, camera_matrix) = self.camera.get_matrixes();
 

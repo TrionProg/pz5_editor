@@ -1,7 +1,6 @@
 use std;
 use pz5;
 use glium;
-use render;
 
 use std::rc::Rc;
 use glium::VertexBuffer;
@@ -9,15 +8,14 @@ use pz5::GeometryType;
 use glium::index::PrimitiveType;
 use pz5::Pz5Geometry;
 
-use RenderError;
-use RenderFrame;
-use Window;
-
+use super::Error;
+use super::Window;
+use super::Frame;
 use super::ModelShader;
 
 
 pub trait VBOTrait{
-    fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError>;
+    fn render(&self, frame:&mut Frame) -> Result<(),Error>;
 }
 
 pub struct VBO<V:glium::vertex::Vertex>{
@@ -27,7 +25,7 @@ pub struct VBO<V:glium::vertex::Vertex>{
 }
 
 impl<V:glium::vertex::Vertex> VBOTrait for VBO<V>{
-    fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError>{
+    fn render(&self, frame:&mut Frame) -> Result<(),Error>{
         let uniforms = uniform! {
             perspective_matrix: Into::<[[f32; 4]; 4]>::into(frame.perspective_matrix),
             camera_matrix: Into::<[[f32; 4]; 4]>::into(frame.camera_matrix),
@@ -53,7 +51,7 @@ impl<V:glium::vertex::Vertex> VBO<V> {
         primitive_type:PrimitiveType,
         shader:Rc<ModelShader>,
         window:&Window
-    ) -> Result<Self,RenderError> {
+    ) -> Result<Self,Error> {
         println!("LOAD");
         let vertex_buffer=glium::VertexBuffer::new(&window.display, geometry.as_buf::<V>() )?;
 
@@ -75,7 +73,7 @@ impl<V:glium::vertex::Vertex> VBO<V>{
         vertex_format:&String,
         geometry:Pz5Geometry,
         geometry_type:GeometryType
-    ) -> Result<Box<Self>,RenderError>{
+    ) -> Result<Box<Self>,Error>{
         let primitive_type=match geometry_type{
             GeometryType::Points => PrimitiveType::Points,
             GeometryType::Lines => PrimitiveType::LinesList,

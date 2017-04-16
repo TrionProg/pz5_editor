@@ -5,38 +5,41 @@ use std::sync::RwLock;
 use std::sync::mpsc;
 
 pub mod vertex;
-/*
-pub mod lod;
-pub use self::lod::{LOD, LODTrait};
-
-pub mod mesh;
-pub use self::mesh::{Mesh, MeshTrait};
-
-pub mod model;
-pub use self::model::Model;
-*/
-/*
-pub mod object;
-pub use self::object::Object;
-*/
 
 pub mod render;
-pub use self::render::{Render,RenderTask};
+pub use self::render::{Render,Task};
 
-pub type RenderSender=mpsc::Sender<RenderTask>;
-
-pub mod error;
-pub use self::error::RenderError;
-
-pub mod frame;
-pub use self::frame::RenderFrame;
-/*
-pub mod frame;
-pub use self::frame::ObjectFrame;
+pub type Sender=mpsc::Sender<Task>;
 
 pub mod error;
-pub use self::error::RenderError;
+pub use self::error::Error;
 
-pub mod render;
-pub use self::render::Render;
-*/
+pub mod frame;
+pub use self::frame::Frame;
+
+pub mod storage;
+pub use self::storage::Storage;
+
+pub mod grid;
+pub use self::grid::Grid;
+
+pub mod grid_shader;
+pub use self::grid_shader::GridShader;
+
+pub mod model_shader;
+pub use self::model_shader::ModelShader;
+
+pub mod vbo;
+pub use self::vbo::{VBO,VBOTrait};
+
+pub mod geometry;
+pub use self::geometry::Geometry;
+
+pub mod skeleton_shader;
+pub use self::skeleton_shader::SkeletonShader;
+
+pub mod skeleton;
+pub use self::skeleton::Skeleton;
+
+pub mod window;
+pub use self::window::Window;

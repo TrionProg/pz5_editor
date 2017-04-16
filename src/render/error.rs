@@ -5,7 +5,7 @@ use glium;
 use object_pool::growable::ID;
 
 #[derive(Debug)]
-pub enum RenderError{
+pub enum Error{
     //NoWindow,
     GliumCreationError(Box<glium::GliumCreationError<glium::glutin::CreationError>>),
     ProgramCreationError(Box<glium::program::ProgramCreationError>),
@@ -20,58 +20,58 @@ pub enum RenderError{
 }
 
 
-impl From<glium::GliumCreationError<glium::glutin::CreationError>> for RenderError {
+impl From<glium::GliumCreationError<glium::glutin::CreationError>> for Error {
     fn from(glium_creation_error: glium::GliumCreationError<glium::glutin::CreationError>) -> Self{
-        RenderError::GliumCreationError( Box::new(glium_creation_error) )
+        Error::GliumCreationError( Box::new(glium_creation_error) )
     }
 }
 
-impl From<glium::program::ProgramCreationError> for RenderError {
+impl From<glium::program::ProgramCreationError> for Error {
     fn from(program_creation_error: glium::program::ProgramCreationError) -> Self{
-        RenderError::ProgramCreationError( Box::new(program_creation_error) )
+        Error::ProgramCreationError( Box::new(program_creation_error) )
     }
 }
 
-impl From<glium::program::ProgramChooserCreationError> for RenderError {
+impl From<glium::program::ProgramChooserCreationError> for Error {
     fn from(program_chooser_creation_error: glium::program::ProgramChooserCreationError) -> Self{
-        RenderError::ProgramChooserCreationError( Box::new(program_chooser_creation_error) )
+        Error::ProgramChooserCreationError( Box::new(program_chooser_creation_error) )
     }
 }
 
-impl From<glium::vertex::BufferCreationError> for RenderError {
+impl From<glium::vertex::BufferCreationError> for Error {
     fn from(buffer_creation_error: glium::vertex::BufferCreationError) -> Self{
-        RenderError::VertexBufferCreationError( Box::new(buffer_creation_error) )
+        Error::VertexBufferCreationError( Box::new(buffer_creation_error) )
     }
 }
 
-impl From<glium::buffer::BufferCreationError> for RenderError {
+impl From<glium::buffer::BufferCreationError> for Error {
     fn from(buffer_creation_error: glium::buffer::BufferCreationError) -> Self{
-        RenderError::BufferCreationError( Box::new(buffer_creation_error) )
+        Error::BufferCreationError( Box::new(buffer_creation_error) )
     }
 }
 
-impl From<glium::DrawError> for RenderError {
+impl From<glium::DrawError> for Error {
     fn from(draw_error: glium::DrawError) -> Self{
-        RenderError::DrawError( Box::new(draw_error) )
+        Error::DrawError( Box::new(draw_error) )
     }
 }
 
 
 
-impl std::fmt::Display for RenderError{
+impl std::fmt::Display for Error{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self{
-            //RenderError::NoWindow => write!(f, "No window"),
-            RenderError::GliumCreationError(ref e) => write!(f, "Can not create window. Error:{}", e),
-            RenderError::ProgramCreationError(ref e) => write!(f, "Can not create shader program. Error:{}", e),
-            RenderError::ProgramChooserCreationError(ref e) => write!(f, "Can not choose shader program. Error:{}", e),
-            RenderError::NoShaderProgram(ref full_vertex_format) => write!(f, "No shader program for \"{}\"", full_vertex_format),
-            RenderError::VertexBufferCreationError(ref e) => write!(f, "Can not create vertex buffer:{}", e),
-            RenderError::BufferCreationError(ref e) => write!(f, "Can not create buffer:{}", e),
-            RenderError::DrawError(ref e) => write!(f, "Can not draw:{}", e),
-            RenderError::NoGeometryWithID(id) => write!(f, "No geometry with id {}",id),
-            RenderError::NoSkeletonWithID(id) => write!(f, "No skeleton with id {}",id),
-            RenderError::NoSkeleton => write!(f, "No skeleton"),
+            //Error::NoWindow => write!(f, "No window"),
+            Error::GliumCreationError(ref e) => write!(f, "Can not create window. Error:{}", e),
+            Error::ProgramCreationError(ref e) => write!(f, "Can not create shader program. Error:{}", e),
+            Error::ProgramChooserCreationError(ref e) => write!(f, "Can not choose shader program. Error:{}", e),
+            Error::NoShaderProgram(ref full_vertex_format) => write!(f, "No shader program for \"{}\"", full_vertex_format),
+            Error::VertexBufferCreationError(ref e) => write!(f, "Can not create vertex buffer:{}", e),
+            Error::BufferCreationError(ref e) => write!(f, "Can not create buffer:{}", e),
+            Error::DrawError(ref e) => write!(f, "Can not draw:{}", e),
+            Error::NoGeometryWithID(id) => write!(f, "No geometry with id {}",id),
+            Error::NoSkeletonWithID(id) => write!(f, "No skeleton with id {}",id),
+            Error::NoSkeleton => write!(f, "No skeleton"),
         }
     }
 }

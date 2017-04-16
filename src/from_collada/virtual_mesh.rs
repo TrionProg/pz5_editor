@@ -30,3 +30,33 @@ impl<'a> VirtualMesh<'a>{
         Ok(())
     }
 }
+
+impl<'a> PartialEq for VirtualMesh<'a> {
+    fn eq(&self, other:&Self) -> bool {
+        if self.location != other.location || self.vertex_format != other.vertex_format ||
+            self.geometry_type != other.geometry_type {
+            //println!("3");
+            return false;
+        }
+
+            //TODO: match controllers
+
+        if self.lods.len() != other.lods.len() {
+            //println!("4");
+            return false;
+        }
+
+        for (lod1,lod2) in self.lods.iter().zip(other.lods.iter()) {
+            if lod1.distance != lod2.distance || lod1.geometry.id != lod2.geometry.id {
+                //println!("5");
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn ne(&self, other:&Self) -> bool {
+        !self.eq(other)
+    }
+}

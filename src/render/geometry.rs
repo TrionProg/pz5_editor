@@ -5,14 +5,13 @@ use pz5::GeometryType;
 use glium::index::PrimitiveType;
 use object_pool::growable::{ID,Slot};
 
+
+use super::Error;
+use super::Window;
+use super::Frame;
 use super::ModelShader;
 use super::{VBO,VBOTrait};
 use super::vertex;
-
-use RenderError;
-use Window;
-
-use RenderFrame;
 
 pub struct Geometry{
     pub id:ID,
@@ -36,7 +35,7 @@ impl Geometry{
         vertex_format:String,
         shader:Rc<ModelShader>,
         window:&Window
-    ) -> Result<Self, RenderError> {
+    ) -> Result<Self, Error> {
         let primitive_type=match geometry_type{
             GeometryType::Points => PrimitiveType::Points,
             GeometryType::Lines => PrimitiveType::LinesList,
@@ -53,7 +52,7 @@ impl Geometry{
             "VERTEX:(X:f32,Y:f32,Z:f32) NORMAL:(X:f32,Y:f32,Z:f32)" => Box::new( VBO::<vertex::VertexP3N3>::new(
                 geometry,primitive_type,shader,window
             )? ),
-            _ => return Err(RenderError::NoShaderProgram(String::from("aaa"))),
+            _ => return Err(Error::NoShaderProgram(String::from("aaa"))),
         };
 
         let geometry=Geometry{
@@ -64,7 +63,7 @@ impl Geometry{
         Ok(geometry)
     }
 
-    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut Frame) -> Result<(),Error> {
         self.vbo.render(frame)?;
 
         Ok(())

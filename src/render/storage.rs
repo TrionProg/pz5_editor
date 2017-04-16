@@ -1,7 +1,6 @@
 use std;
 use object_pool;
-use render;
-use object;
+use process;
 
 use std::path::Path;
 use std::rc::Rc;
@@ -12,8 +11,8 @@ use object_pool::growable::{Pool,ID,Slot};
 use pz5::GeometryType;
 use pz5::Pz5Geometry;
 
-use RenderError;
-use Window;
+use super::Error;
+use super::Window;
 use super::Grid;
 use super::GridShader;
 use super::ModelShader;
@@ -33,7 +32,7 @@ pub struct Storage{
 }
 
 impl Storage{
-    pub fn new(window:&Window) -> Result<Self,RenderError> {
+    pub fn new(window:&Window) -> Result<Self,Error> {
         let model_shaders = ModelShader::generate_model_shaders(window)?;
 
         let grid_shader=GridShader::new(window)?;
@@ -53,14 +52,14 @@ impl Storage{
     }
 
     pub fn load_geometry(&mut self,
-        lod:Arc<object::LOD>,
+        lod:Arc<process::LOD>,
 
         geometry:Pz5Geometry,
         geometry_type:GeometryType,
         vertex_format:String,
 
         window:&Window,
-    ) -> Result<(),RenderError> {
+    ) -> Result<(),Error> {
         let mut geometry_id_guard=lod.geometry_id.lock().unwrap();
 
         match *geometry_id_guard {
@@ -72,7 +71,7 @@ impl Storage{
 
         let shader=match self.model_shaders.get(&vertex_format) {
             Some( shader ) => shader.clone(),
-            None => return Err( RenderError::NoShaderProgram(vertex_format) ),
+            None => return Err( Error::NoShaderProgram(vertex_format) ),
         };
 
         let mut geometry=Geometry::new(geometry,geometry_type,vertex_format,shader,window)?;
@@ -85,11 +84,11 @@ impl Storage{
     }
 
     pub fn load_skeleton(&mut self,
-        model:Arc<object::Model>,
+        model:Arc<process::Model>,
         joints_geometry:Vec<super::skeleton::Vertex>,
         bones_geometry:Vec<super::skeleton::Vertex>,
         window:&Window,
-    ) -> Result<(),RenderError> {
+    ) -> Result<(),Error> {
         let mut skeleton_id_guard=model.skeleton.write().unwrap();
 
         match skeleton_id_guard.skeleton_id {

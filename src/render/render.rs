@@ -1,11 +1,9 @@
 use std;
 use pz5;
-use process;
-use object;
-use storage;
 use glutin;
 use glium;
 use object_pool;
+use process;
 
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -13,15 +11,13 @@ use std::thread;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use RenderError;
-use Window;
-use Storage;
+use super::Error;
+use super::Window;
+use super::Storage;
+use super::Frame;
 use Camera;
 use State;
 use GUI;
-use Object;
-use process::ProcessTask;
-use super::RenderFrame;
 
 use glutin::ElementState;
 use glutin::Event as WindowEvent;
@@ -31,12 +27,12 @@ use pz5::Pz5Geometry;
 
 use object_pool::growable::ID;
 
-pub enum RenderTask{
+pub enum Task{
     Error(String),
-    LoadLOD(Arc<object::LOD>, Pz5Geometry, String, GeometryType),
-    RemoveLOD(Arc<object::LOD>,ID),
-    LoadSkeleton(Arc<object::Model>, Vec<storage::skeleton::Vertex>, Vec<storage::skeleton::Vertex>),
-    RemoveSkeleton(Arc<object::Model>,ID),
+    LoadLOD(Arc<process::LOD>, Pz5Geometry, String, GeometryType),
+    RemoveLOD(Arc<process::LOD>,ID),
+    LoadSkeleton(Arc<process::Model>, Vec<super::skeleton::Vertex>, Vec<super::skeleton::Vertex>),
+    RemoveSkeleton(Arc<process::Model>,ID),
 }
 
 pub struct Render{
@@ -44,20 +40,20 @@ pub struct Render{
     gui:GUI,
     storage:Storage,
     camera:Camera,
-    object:Arc<RwLock< Option<Object> >>,
+    process_storage:Arc< process::Storage >,
     state:Arc<State>,
-    to_process_tx:mpsc::Sender<ProcessTask>,
+    to_process_tx:mpsc::Sender<process::Task>,
 }
 
 impl Render {
     pub fn run(
-        object:Arc<RwLock< Option<Object> >>,
+        process_storage:Arc< process::Storage >,
         state:Arc<State>,
-        to_process_tx:mpsc::Sender<ProcessTask>,
-        to_render_rx:mpsc::Receiver<RenderTask>
+        to_process_tx:mpsc::Sender<process::Task>,
+        to_render_rx:mpsc::Receiver<Task>
     ) {
         match Self::thread_function(
-            object,
+            process_storage,
             state.clone(),
             to_process_tx,
             to_render_rx,
@@ -73,11 +69,11 @@ impl Render {
     }
 
     fn thread_function(
-        object:Arc<RwLock< Option<Object> >>,
+        process_storage:Arc< process::Storage >,
         state:Arc<State>,
-        to_process_tx:mpsc::Sender<ProcessTask>,
-        to_render_rx:mpsc::Receiver<RenderTask>
-    ) -> Result<(),RenderError> {
+        to_process_tx:mpsc::Sender<process::Task>,
+        to_render_rx:mpsc::Receiver<Task>
+    ) -> Result<(),Error> {
         let mut window=Window::new(1024, 768)?;
         let mut storage=Storage::new(&window)?;
         let mut gui=GUI::new(&window)?;
@@ -88,7 +84,7 @@ impl Render {
             gui:gui,
             storage:storage,
             camera:camera,
-            object:object,
+            process_storage:process_storage,
             state:state,
             to_process_tx:to_process_tx,
         };
@@ -102,7 +98,7 @@ impl Render {
         loop_result
     }
 
-    fn render_loop(&mut self, to_render_rx:&mpsc::Receiver<RenderTask>) -> Result<(),RenderError>{
+    fn render_loop(&mut self, to_render_rx:&mpsc::Receiver<Task>) -> Result<(),Error>{
         let mut next_frame_time=Instant::now();
 
         while !self.state.should_exit() {
@@ -110,13 +106,13 @@ impl Render {
                 match to_render_rx.try_recv(){
                     Ok ( task ) => {
                         match task{
-                            RenderTask::Error(_) => {},
-                            RenderTask::LoadLOD(lod,geometry,vertex_format,geometry_type) =>
+                            Task::Error(_) => {},
+                            Task::LoadLOD(lod,geometry,vertex_format,geometry_type) =>
                                 self.storage.load_geometry(lod, geometry, geometry_type, vertex_format, &self.window)?,
-                            RenderTask::RemoveLOD(lod,geometry_id) => {},//TODO:removeLOD
-                            RenderTask::LoadSkeleton(skeleton,joints_geometry, bones_geometry) =>
+                            Task::RemoveLOD(lod,geometry_id) => {},//TODO:removeLOD
+                            Task::LoadSkeleton(skeleton,joints_geometry, bones_geometry) =>
                                 self.storage.load_skeleton(skeleton, joints_geometry, bones_geometry, &self.window)?,
-                            RenderTask::RemoveSkeleton(model,skeleton_id) => {},//TODO:removeSkeleton
+                            Task::RemoveSkeleton(model,skeleton_id) => {},//TODO:removeSkeleton
                         }
                     },
                     Err( mpsc::TryRecvError::Empty ) => break,
@@ -136,7 +132,7 @@ impl Render {
                     WindowEvent::MouseWheel(delta,_) =>
                         self.on_mouse_wheel(delta),
                     WindowEvent::DroppedFile(path) =>
-                        {self.to_process_tx.send( ProcessTask::LoadModel(path.into_os_string()) );},//TODO:process error(return Err)
+                        {self.to_process_tx.send( process::Task::LoadModel(path.into_os_string()) );},//TODO:process error(return Err)
                     _ => {},
                 }
             }
@@ -144,7 +140,7 @@ impl Render {
             if Instant::now()>next_frame_time {
                 self.render()?;
                 /*
-                match RenderFrame::new(&self.camera, &self.window, &self.storage) {
+                match Frame::new(&self.camera, &self.window, &self.storage) {
                     Some( mut frame ) => {
                         self.storage.grid.render(&mut frame, &self.storage.grid_shader)?;
                         use glium::Surface;
@@ -210,7 +206,7 @@ impl Render {
             //file_name.push("pz5.dae");
             //file_name.push("box.dae");
             file_name.push("scene.dae");
-            self.to_process_tx.send( ProcessTask::LoadModel(file_name) );
+            self.to_process_tx.send( process::Task::LoadModel(file_name) );
         }
     }
 
@@ -218,24 +214,28 @@ impl Render {
         self.camera.on_mouse_wheel(&mut self.storage, &self.window, delta);
     }
 
-    fn render(&mut self) -> Result<(),RenderError> {
-        match RenderFrame::new(&self.camera, &self.window, &self.storage) {
+    fn render(&mut self) -> Result<(),Error> {
+        match Frame::new(&self.camera, &self.window, &self.storage) {
             Some( mut frame ) => {
-                self.storage.grid.render(&mut frame, &self.storage.grid_shader)?;
-
-                match *self.object.read().unwrap() {
-                    Some( ref object ) => {
-                        object.render( &mut frame )?;
-                        frame.skeleton_mode();
-                        object.render_skeletons( &mut frame )?;
-                    },
-                    None => {},
+                match self.render_world(&mut frame) {
+                    Ok(_) => {},
+                    Err(e) => println!("{}",e),
                 }
 
                 frame.finish();
             },
             None => {},
         }
+
+        Ok(())
+    }
+
+    fn render_world(&self, frame:&mut Frame) -> Result<(),Error> {
+        self.storage.grid.render(frame, &self.storage.grid_shader)?;
+
+        self.process_storage.render( frame )?;
+        frame.skeleton_mode();
+        self.process_storage.render_skeletons( frame )?;
 
         Ok(())
     }

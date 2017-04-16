@@ -4,8 +4,8 @@ use glium;
 use std::rc::Rc;
 use std::collections::HashMap;
 
-use RenderError;
-use Window;
+use super::Error;
+use super::Window;
 
 #[derive(Copy,Clone)]
 enum Dimension{
@@ -18,7 +18,7 @@ pub struct ModelShader{
 }
 
 impl ModelShader{
-    fn generate(window:&Window, dimension:Dimension, is_normal:bool, is_tex_coords:bool) -> Result<(String,Self),RenderError>{
+    fn generate(window:&Window, dimension:Dimension, is_normal:bool, is_tex_coords:bool) -> Result<(String,Self),Error>{
         let vertex_format=Self::generate_vertex_format(dimension,is_normal,is_tex_coords);
         let vertex_code=Self::generate_vertex_code(dimension,is_normal,is_tex_coords);
         let fragment_code=Self::generate_fragment_code(dimension,is_normal,is_tex_coords);
@@ -212,7 +212,7 @@ void main() {"
         fragment_code
     }
 
-    pub fn generate_model_shaders(window:&Window) -> Result< HashMap<String,Rc<Self>> ,RenderError>{
+    pub fn generate_model_shaders(window:&Window) -> Result< HashMap<String,Rc<Self>> ,Error>{
         let mut shaders=HashMap::new();
 
         for dimension in [Dimension::V2D,Dimension::V3D].into_iter(){

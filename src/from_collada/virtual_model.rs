@@ -15,6 +15,7 @@ use collada::Scene;
 use super::VirtualMesh;
 use super::VirtualLOD;
 use super::VirtualInstance;
+use super::VirtualSkeleton;
 
 use super::Error;
 use super::location::pos3d_from_collada;
@@ -26,7 +27,7 @@ use location::Location;
 pub struct VirtualModel<'a> {
     pub best_name:Option<String>,
     pub location:Location,
-    pub skeleton:Option<&'a Arc<collada::Skeleton>>,
+    pub skeleton:Option<VirtualSkeleton<'a>>,
     pub meshes:HashMap<String,VirtualMesh<'a>>,
     pub animations:Vec< Vec<&'a Arc<collada::Animation>> >,
 
@@ -42,16 +43,23 @@ impl<'a> VirtualModel<'a>{
         }
     }
 
-    pub fn new(skeleton:Option<&'a Arc<collada::Skeleton>>, best_name:Option<String>, location:Location) -> Self {
-        VirtualModel{
+    pub fn new(skeleton:Option<&'a Arc<collada::Skeleton>>, best_name:Option<String>, location:Location) -> Result<Self,Error> {
+        let virtual_skeleton=match skeleton {
+            Some( skeleton ) => Some( VirtualSkeleton::new(&location,skeleton)? ),
+            None => None,
+        };
+
+        let virtual_model=VirtualModel{
             best_name:best_name,
             location:location,
-            skeleton:skeleton,
+            skeleton:virtual_skeleton,
             meshes:HashMap::new(),
             animations:Vec::new(),
 
             instances:Vec::new(),
-        }
+        };
+
+        Ok( virtual_model )
     }
 
     pub fn generate_virtual_models(document:&'a Document, scene:&'a Scene) -> Result< HashMap<String,VirtualModel<'a>>,Error>{
@@ -95,7 +103,7 @@ impl<'a> VirtualModel<'a>{
                             },
                         };
 
-                        virtual_models.insert(skin.skeleton_id.clone(), VirtualModel::new(Some(skeleton),None,skeleton_location) );
+                        virtual_models.insert(skin.skeleton_id.clone(), VirtualModel::new(Some(skeleton),None,skeleton_location)? );
                     }
 
                     let virtual_model=virtual_models.get_mut(&skin.skeleton_id).unwrap();
@@ -127,7 +135,7 @@ impl<'a> VirtualModel<'a>{
                             },
                         };
 
-                        virtual_models.insert(bone.skeleton_id.clone(), VirtualModel::new(Some(skeleton),None,skeleton_location) );
+                        virtual_models.insert(bone.skeleton_id.clone(), VirtualModel::new(Some(skeleton),None,skeleton_location)? );
                     }
 
                     let virtual_model=virtual_models.get_mut(&bone.skeleton_id).unwrap();
@@ -150,7 +158,7 @@ impl<'a> VirtualModel<'a>{
                             },
                         };
 
-                        virtual_models.insert(node_name.clone(), VirtualModel::new(None,Some( node_name.clone()),model_location) );
+                        virtual_models.insert(node_name.clone(), VirtualModel::new(None,Some( node_name.clone()),model_location)? );
                     }
 
                     let virtual_model=virtual_models.get_mut(&node_name).unwrap();
@@ -165,6 +173,8 @@ impl<'a> VirtualModel<'a>{
                     (virtual_model, location)
                 },
             };
+
+            let mesh_location=location-virtual_model.location;
 
             //insert meshes
 
@@ -194,7 +204,7 @@ impl<'a> VirtualModel<'a>{
                             VirtualMesh{
                                 name:mesh_name,
                                 vertex_format:vertex_format,
-                                location:location.clone(),
+                                location:mesh_location.clone(),
 
                                 lods:lods,
                                 geometry_type:geometry_type,
@@ -202,8 +212,14 @@ impl<'a> VirtualModel<'a>{
                             }
                         );
                     },
-                    Entry::Occupied(mut entry) =>
-                        entry.get_mut().lods.push(virtual_lod),
+                    Entry::Occupied(mut entry) => {
+                        let mesh=entry.get_mut();
+                        if mesh_location != mesh.location {
+                            return Err(Error::MeshLODLocationsMismatch( mesh.name.clone(), geometry_node.name.clone() ));
+                        }
+
+                        mesh.lods.push(virtual_lod);
+                    },
                 }
             }
         }
@@ -224,6 +240,13 @@ impl<'a> VirtualModel<'a>{
         Ok( virtual_models )
     }
 
+    pub fn get_name(&self) -> &String {
+        match self.best_name {
+            Some( ref name ) => name,
+            None => unreachable!(),
+        }
+    }
+
     pub fn check_and_sort_virtual_models(virtual_models:&mut HashMap<String,VirtualModel<'a>>) -> Result<(),Error> {
         for (_,virtual_model) in virtual_models.iter_mut() {
             for (_,virtual_mesh) in virtual_model.meshes.iter_mut(){
@@ -237,7 +260,7 @@ impl<'a> VirtualModel<'a>{
 
             if virtual_model.best_name.is_none() {
                 virtual_model.best_name=match virtual_model.skeleton {
-                    Some( skeleton ) => Some(skeleton.id.clone()),
+                    Some( ref skeleton ) => Some(skeleton.collada_skeleton.id.clone()),
                     None => unreachable!(),
                 }
             }
@@ -258,6 +281,22 @@ impl<'a> VirtualModel<'a>{
                 if virtual_model.eq(&virtual_model_instance) {
                     if virtual_model.skeleton.is_some() {
                         virtual_model.animations.append( &mut virtual_model_instance.animations );
+                    }
+
+                    //rename model
+                    if virtual_model_instance.get_name() < virtual_model.get_name() {
+                        virtual_model.best_name=virtual_model_instance.best_name.clone();
+                    }
+
+                    //rename meshes
+                    for (_,virtual_mesh1) in virtual_model.meshes.iter_mut() {
+                        for (_,virtual_mesh2) in virtual_model_instance.meshes.iter() {
+                            if virtual_mesh1==virtual_mesh2 {
+                                if virtual_mesh2.name < virtual_mesh1.name {
+                                    virtual_mesh1.name=virtual_mesh2.name.clone();
+                                }
+                            }
+                        }
                     }
 
                     let virtual_instance=Rc::new( VirtualInstance::new(
@@ -292,36 +331,6 @@ impl<'a> VirtualModel<'a>{
 
         Ok( (virtual_models,virtual_instances) )
     }
-
-    pub fn select_names_of_virtual_models(virtual_models:&Vec< Rc<RefCell<VirtualModel<'a>>> >) {
-        for virtual_model_rc in virtual_models.iter() {
-            let mut virtual_model=virtual_model_rc.borrow_mut();
-
-            let mut names=Vec::with_capacity( virtual_model.instances.len() );
-
-            for instance in virtual_model.instances.iter() {
-                names.push( instance.upgrade().unwrap().name.clone() );
-            }
-
-            names.sort();
-
-            virtual_model.best_name=Some( names[0].clone() );
-        }
-    }
-
-    fn are_skeletons_eq(skeleton1:&collada::Skeleton, skeleton2:&collada::Skeleton) -> bool {
-        if skeleton1.bones_array.len() != skeleton2.bones_array.len() {
-            return false;
-        }
-
-        for (bone1,bone2) in skeleton1.bones_array.iter().zip(skeleton2.bones_array.iter()) {
-            if bone1.id != bone2.id || bone1.name != bone2.name || /*bone1.location != bone2.location ||*/ bone1.parent != bone2.parent {
-                return false;
-            }
-        }
-
-        true
-    }
 }
 
 impl<'a> PartialEq for VirtualModel<'a> {
@@ -329,7 +338,7 @@ impl<'a> PartialEq for VirtualModel<'a> {
         let skeletons_eq = match self.skeleton {
             Some( ref skeleton1 ) => {
                 match other.skeleton {
-                    Some( ref skeleton2 ) => VirtualModel::are_skeletons_eq(skeleton1, skeleton2),
+                    Some( ref skeleton2 ) => skeleton1 == skeleton2,
                     None => false,
                 }
             },
@@ -353,26 +362,14 @@ impl<'a> PartialEq for VirtualModel<'a> {
             return false;
         }
 
-        for ((_,mesh1),(_,mesh2)) in self.meshes.iter().zip(other.meshes.iter()) {
-            if /*mesh1.location != mesh2.location ||*/ mesh1.vertex_format != mesh2.vertex_format ||
-            mesh1.geometry_type != mesh2.geometry_type {
-                //println!("3");
-                return false;
-            }
-
-            //TODO: match controllers
-
-            if mesh1.lods.len() != mesh2.lods.len() {
-                //println!("4");
-                return false;
-            }
-
-            for (lod1,lod2) in mesh1.lods.iter().zip(mesh2.lods.iter()) {
-                if lod1.distance != lod2.distance || lod1.geometry.id != lod2.geometry.id {
-                    //println!("5");
-                    return false;
+        'mesh_loop: for (_,mesh1) in self.meshes.iter() {
+            for (_,mesh2) in other.meshes.iter() {
+                if mesh1==mesh2 {
+                    continue 'mesh_loop;
                 }
             }
+
+            return false;//no matching mesh have been found
         }
 
         true

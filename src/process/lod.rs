@@ -1,7 +1,7 @@
 use std;
 use pz5;
-use from_collada;
 use glium;
+use from_collada;
 use render;
 
 use std::sync::Arc;
@@ -9,19 +9,13 @@ use std::sync::{Mutex,RwLock};
 
 use pz5::vertex_format::VertexFormat;
 
-use from_collada::VirtualLOD;
-
 use object_pool::multithreaded_growable::{ID,Slot};
 
 use location::Matrix4;
 
-use ProcessError;
-use Object;
-
+use super::Error;
+use super::Storage;
 use super::Geometry;
-
-use RenderError;
-use RenderFrame;
 
 pub struct LODAttrib{
     pub distance:f32,
@@ -62,8 +56,8 @@ impl LOD{
         vertices_count:usize,
         description:String,
 
-        object:&Object
-    ) -> Result< Arc<Self> ,ProcessError > {
+        object:&Storage
+    ) -> Result< Arc<Self> ,Error > {
         let lod=LOD{
             id:ID::zeroed(),
             vertices_count:vertices_count,
@@ -89,10 +83,10 @@ impl LOD{
     }
 
     pub fn build(
-        virtual_lod:&VirtualLOD,
-        object:&Object,
+        virtual_lod:&from_collada::VirtualLOD,
+        object:&Storage,
         vertex_format:String
-    ) -> Result<Arc<Self>,ProcessError> {
+    ) -> Result<Arc<Self>,Error> {
         let geometry=from_collada::Geometry::new( virtual_lod.geometry.clone() );
 
         let lod=LOD::new(
@@ -108,7 +102,7 @@ impl LOD{
         Ok(lod)
     }
 
-    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         {
             let attrib=self.attrib.read().unwrap();
 
@@ -126,7 +120,7 @@ impl LOD{
 
         let geometry=match frame.storage.geometries.get(geometry_id) {
             Some( geometry ) => geometry,
-            None => return Err(RenderError::NoGeometryWithID(geometry_id)),
+            None => return Err(render::Error::NoGeometryWithID(geometry_id)),
         };
 
         geometry.render(frame)?;
@@ -136,7 +130,7 @@ impl LOD{
 
     /*
 
-    pub fn build_render_lod(&mut self, render:&Render, vf:&VertexFormat, vf_str:&String, geometry_type:pz5::GeometryType) -> Result<(),ProcessError> {
+    pub fn build_render_lod(&mut self, render:&Render, vf:&VertexFormat, vf_str:&String, geometry_type:pz5::GeometryType) -> Result<(),Error> {
         let render_lod=self.geometry.build_render_lod(render, vf, vf_str, geometry_type)?;
 
         self.render_lod=Some(render_lod);

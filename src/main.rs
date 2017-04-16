@@ -22,20 +22,11 @@ pub use error::Error;
 
 pub mod location;
 
-pub mod window;
-pub use window::Window;
-
 pub mod gui;
 pub use gui::GUI;
 
-pub mod storage;
-pub use storage::Storage;
-
 pub mod camera;
 pub use camera::Camera;
-
-pub mod object;
-pub use object::Object;
 
 pub mod from_collada;
 
@@ -43,10 +34,7 @@ pub mod state;
 pub use state::State;
 
 pub mod render;
-pub use render::{Render,RenderFrame,RenderError,RenderTask,RenderSender};
-
 pub mod process;
-pub use process::{Process,ProcessError,ProcessTask,ProcessSender};
 
 pub mod application;
 pub use application::Application;
@@ -64,7 +52,7 @@ fn main(){
     };
 
     if gui_mode{
-        Application::run();
+        Application::run(gui_mode);
     }
 }
 

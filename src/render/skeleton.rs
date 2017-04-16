@@ -7,27 +7,28 @@ use std::cell::UnsafeCell;
 use glium::VertexBuffer;
 use glium::uniforms::UniformBuffer;
 
-use RenderError;
-use Window;
-use RenderFrame;
+use super::Error;
+use super::Window;
+use super::Frame;
 use super::SkeletonShader;
 
 use object_pool::growable::{ID,Slot};
 
 #[derive(Copy,Clone)]
 pub struct Vertex{
-    pub bone_index:u32,
+    pub position:[f32;3],
     pub color:f32,
+    pub bone_index:u32,
 }
 
-implement_vertex!(Vertex, bone_index, color);
+implement_vertex!(Vertex, position, color, bone_index);
 
 impl Vertex{
-    pub fn new(bone_index:u32, color:f32) -> Self {
+    pub fn new(position:Pos3D, color:f32, bone_index:u32) -> Self {
         Vertex{
-            bone_index:bone_index,
+            position:[position.x,position.y,position.z],
             color:color,
-            //bone_index:usize,
+            bone_index:bone_index,
         }
     }
 }
@@ -58,7 +59,7 @@ impl Slot for Skeleton{
 }
 
 impl Skeleton{
-    pub fn new(joints_buffer:Vec<Vertex>, bones_buffer:Vec<Vertex>, window:&Window) -> Result<Self,RenderError> {
+    pub fn new(joints_buffer:Vec<Vertex>, bones_buffer:Vec<Vertex>, window:&Window) -> Result<Self,Error> {
         let ubo=UniformBuffer::empty_unsized_dynamic(&window.display, joints_buffer.len() * 16 * 4)?;
         let joints_vbo=VertexBuffer::new(&window.display, joints_buffer.as_ref())?;
         let bones_vbo=VertexBuffer::new(&window.display, bones_buffer.as_ref())?;
@@ -74,13 +75,13 @@ impl Skeleton{
     }
 
     /*
-    fn build(buffer:Vec<Vertex>, window:&Window) -> Result<VertexBuffer<Vertex>,RenderError> {
+    fn build(buffer:Vec<Vertex>, window:&Window) -> Result<VertexBuffer<Vertex>,Error> {
         let vbo=VertexBuffer::new(&window.display, buffer.as_ref())?;
 
         Ok(vbo)
     }
 
-    fn rebuild(buffer:Vec<Vertex>, window:&Window) -> Result<VertexBuffer<Vertex>,RenderError> {
+    fn rebuild(buffer:Vec<Vertex>, window:&Window) -> Result<VertexBuffer<Vertex>,Error> {
         let vbo=VertexBuffer::new(&window.display, buffer.as_ref())?;
 
         Ok(vbo)
@@ -105,7 +106,7 @@ impl Skeleton{
         */
     }
 
-    pub fn render(&self, frame:&mut RenderFrame) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut Frame) -> Result<(),Error> {
         use glium::Surface;
 
         let ubo=unsafe{ &*self.ubo.get() };

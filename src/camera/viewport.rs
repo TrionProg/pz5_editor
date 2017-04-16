@@ -1,9 +1,11 @@
 use std;
 use cgmath;
+use render;
+
 use cgmath::{Rad, PerspectiveFov,Matrix4};
 use cgmath::rad;
 
-use Window;
+use render::Window;
 
 pub struct Viewport{
     pub width:u32,
@@ -12,7 +14,7 @@ pub struct Viewport{
 }
 
 impl Viewport{
-    pub fn configure(window:&Window) -> Option<Self>{
+    pub fn configure(window:&render::Window) -> Option<Self>{
         //TODO:none if width<0
         let width=window.width;
         let height=window.height;

@@ -3,9 +3,9 @@ use glium;
 
 use glium::VertexBuffer;
 
-use RenderError;
-use Window;
-use RenderFrame;
+use super::Error;
+use super::Window;
+use super::Frame;
 use super::GridShader;
 
 #[derive(Copy,Clone)]
@@ -27,7 +27,7 @@ pub struct Grid{
 }
 
 impl Grid{
-    pub fn new(distance:f32, window:&Window) -> Result<Self,RenderError> {
+    pub fn new(distance:f32, window:&Window) -> Result<Self,Error> {
         let vbo=Self::build(distance, window)?;
 
         let mut grid=Grid{
@@ -37,7 +37,7 @@ impl Grid{
         Ok(grid)
     }
 
-    fn build(distance:f32, window:&Window) -> Result<VertexBuffer<Vertex>,RenderError> {
+    fn build(distance:f32, window:&Window) -> Result<VertexBuffer<Vertex>,Error> {
         let mut distance_ceil=if distance>200.0 {
             200.0
         }else if distance<1.0 {
@@ -64,13 +64,13 @@ impl Grid{
         Ok(vbo)
     }
 
-    pub fn rebuild(&mut self, distance:f32, window:&Window) -> Result<(),RenderError> {
+    pub fn rebuild(&mut self, distance:f32, window:&Window) -> Result<(),Error> {
         self.vbo=Self::build(distance, window)?;
 
         Ok(())
     }
 
-    pub fn render(&self, frame:&mut RenderFrame, grid_shader:&GridShader) -> Result<(),RenderError> {
+    pub fn render(&self, frame:&mut Frame, grid_shader:&GridShader) -> Result<(),Error> {
         use glium::Surface;
 
         let uniforms = uniform! {

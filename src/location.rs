@@ -1,3 +1,4 @@
+use std;
 use cgmath;
 
 pub type Pos2D = cgmath::Point2<f32>;
@@ -67,6 +68,20 @@ impl PartialEq for Location {
 
     fn ne(&self, other:&Self) -> bool {
         !self.eq(other)
+    }
+}
+
+impl std::ops::Sub for Location {
+    type Output = Location;
+
+    fn sub(self, other: Location) -> Location {
+        use cgmath::EuclideanSpace;
+        
+        Location {
+            position: Pos3D::from_vec(self.position-other.position),
+            scale: Scale(self.scale.0/other.scale.0),
+            rotation: self.rotation-other.rotation,
+        }
     }
 }
 

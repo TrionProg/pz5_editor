@@ -9,32 +9,32 @@ use std::thread::JoinHandle;
 use std::sync::mpsc;
 use std::ffi::OsString;
 
-use ProcessError;
+use super::Error;
+
+use super::Storage;
 use Camera;
 use State;
-use Object;
-use RenderTask;
 
-pub enum ProcessTask{
+pub enum Task{
     LoadModel(OsString),
 }
 
 pub struct Process{
-    object:Arc<RwLock< Option<Object> >>,
+    process_storage:Arc< Storage >,
     state:Arc<State>,
-    to_render_tx:mpsc::Sender<RenderTask>,
+    to_render_tx:mpsc::Sender<render::Task>,
 }
 
 impl Process{
     pub fn run(
-        object:Arc<RwLock< Option<Object> >>,
+        process_storage:Arc< Storage >,
         state:Arc<State>,
-        to_process_rx:mpsc::Receiver<ProcessTask>,
-        to_render_tx:mpsc::Sender<RenderTask>
+        to_process_rx:mpsc::Receiver<Task>,
+        to_render_tx:mpsc::Sender<render::Task>
     ) -> JoinHandle<()> {
         let process_handle=thread::spawn(move||{
             match Self::thread_function(
-                object,
+                process_storage,
                 state.clone(),
                 to_process_rx,
                 to_render_tx,
@@ -53,13 +53,13 @@ impl Process{
     }
 
     fn thread_function(
-        object:Arc<RwLock< Option<Object> >>,
+        process_storage:Arc< Storage >,
         state:Arc<State>,
-        to_process_rx:mpsc::Receiver<ProcessTask>,
-        to_render_tx:mpsc::Sender<RenderTask>
-    ) -> Result<(),ProcessError> {
+        to_process_rx:mpsc::Receiver<Task>,
+        to_render_tx:mpsc::Sender<render::Task>
+    ) -> Result<(),Error> {
         let mut process=Process{
-            object:object,
+            process_storage:process_storage,
             state:state,
             to_render_tx:to_render_tx,
         };
@@ -71,32 +71,17 @@ impl Process{
         loop_result
     }
 
-    fn process_loop(&mut self,to_process_rx:&mpsc::Receiver<ProcessTask>) -> Result<(),ProcessError> {
+    fn process_loop(&mut self,to_process_rx:&mpsc::Receiver<Task>) -> Result<(),Error> {
         while !self.state.should_exit() {
             match to_process_rx.recv(){
                 Ok ( task ) => {
                     match task{
-                        ProcessTask::LoadModel(ref file_name) => {
+                        Task::LoadModel(ref file_name) => {
                             let file_name=Path::new(file_name);
 
-                            {
-                                let mut object=self.object.write().unwrap();
-
-                                if (*object).is_none() {
-                                    *object=Some(Object::empty(true));
-                                }
-                            }
-
-                            let mut object=self.object.read().unwrap();
-
-                            match *object {
-                                None => {},
-                                Some( ref object ) => {
-                                    match object.include_collada_model(file_name, &self.to_render_tx) {
-                                        Ok ( _ ) => {},
-                                        Err( e ) => {println!("{}",e);},//process_data.to_render_tx.send(
-                                    }
-                                },
+                            match self.process_storage.include_collada_model(file_name, &self.to_render_tx) {
+                                Ok ( _ ) => {},
+                                Err( e ) => {println!("{}",e);},//process_data.to_render_tx.send(
                             }
                         },
                     }
