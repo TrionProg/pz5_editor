@@ -29,7 +29,7 @@ pub struct VirtualModel<'a> {
     pub location:Location,
     pub skeleton:Option<VirtualSkeleton<'a>>,
     pub meshes:HashMap<String,VirtualMesh<'a>>,
-    pub animations:Vec< Vec<&'a Arc<collada::Animation>> >,
+    pub animations:Vec< Vec<&'a Arc<collada::Animation>> >,//TODO:Add model location
 
     pub instances:Vec< Weak<VirtualInstance<'a>> >,
     //location or store

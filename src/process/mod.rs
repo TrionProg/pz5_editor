@@ -28,3 +28,9 @@ pub use self::model::Model;
 
 pub mod animation;
 pub use self::animation::{Animation,ZeroFrame,KeyFrame};
+
+pub mod scene;
+pub use self::scene::Scene;
+
+pub mod instance;
+pub use self::instance::{Instance,SkeletonOfInstance};

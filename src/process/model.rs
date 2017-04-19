@@ -25,6 +25,9 @@ use super::Geometry;
 use super::Skeleton;
 use super::ZeroFrame;
 use super::Animation;
+use super::Scene;
+use super::Instance;
+use super::SkeletonOfInstance;
 
 pub struct ModelAttrib{
     pub name:String,
@@ -133,11 +136,11 @@ impl Model{
         Ok(model_name)
     }
 
-    pub fn load_from_collada(file_name:&Path, object:&Storage, to_render_tx:&render::Sender) -> Result<(),Error>{
+    pub fn load_from_collada(file_name:&Path, storage:&Storage, to_render_tx:&render::Sender) -> Result<(),Error>{
         let model_name=Self::get_model_name(file_name)?;
         let document=VirtualModel::parse_collada(file_name)?;
 
-        for (scene_name, scene) in document.scenes.iter(){
+        for (i,(scene_name, scene)) in document.scenes.iter().enumerate(){
             let mut virtual_models = VirtualModel::generate_virtual_models(&document, scene)?;
             VirtualModel::check_and_sort_virtual_models(&mut virtual_models)?;
             let (virtual_models, virtual_instances) = VirtualModel::separate_to_models_and_instances(virtual_models)?;
@@ -156,11 +159,29 @@ impl Model{
                 println!("{}",vi.name);
             }
 
-            for virtual_model in virtual_models.iter() {
-                let model=Model::from_virtual(&document, &virtual_model.borrow(), object, to_render_tx)?;
+            let mut instances=HashMap::new();
 
-                object.add_model(model);
+            for virtual_model in virtual_models.iter() {
+                let model=Model::from_virtual(&document, &virtual_model.borrow(), storage, to_render_tx)?;
+
+                storage.add_model(model.clone());
+
+                for virtual_instance_weak in (&virtual_model.borrow()).instances.iter() {
+                    let virtual_instance=virtual_instance_weak.upgrade().unwrap();
+
+                    let instance=Instance::new( virtual_instance.name.clone(), model.clone(), &virtual_instance.location, to_render_tx )?;
+
+                    match instances.entry( virtual_instance.name.clone() ) {
+                        Entry::Vacant( e ) => {e.insert( instance );},
+                        Entry::Occupied( _ ) => return Err(Error::DuplicateInstance( virtual_instance.name.clone() )),
+                    }
+                }
             }
+
+            let scene_name=format!("{} #{}",model_name,i);
+            let scene=Scene::new(scene_name,instances);
+
+            storage.add_scene(Arc::new( scene ));
         }
 
         /*
@@ -254,7 +275,7 @@ impl Model{
         object:&Storage,
         to_render_tx:&render::Sender
     ) -> Result<Arc<Self>,Error> {
-        let (skeleton, zero_frame, joints_geometry, bones_geometry) = Skeleton::from_virtual(&virtual_model.skeleton, &virtual_model.location)?;
+        let (skeleton, zero_frame, joints_geometry, bones_geometry) = Skeleton::from_virtual(&virtual_model.skeleton)?;
 
         let model=Model::new(
             virtual_model.get_name().clone(),
@@ -272,17 +293,32 @@ impl Model{
             model.add_mesh(mesh);
         }
 
-        to_render_tx.send( render::Task::LoadSkeleton(model.clone(), joints_geometry, bones_geometry) )?;
+        to_render_tx.send( render::Task::LoadGeometryOfSkeleton( model.clone(), joints_geometry, bones_geometry ))?;
 
         Ok(model)
     }
 
-    pub fn prepare_skeleton(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
-        let mut skeleton_guard=self.skeleton.write().unwrap();
-        skeleton_guard.calculate_matrices(frame)
+    pub fn display(&self) -> bool {
+        let attrib_guard=self.attrib.read().unwrap();
+
+        attrib_guard.include && attrib_guard.display
     }
 
-    pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
+    pub fn render_skeleton(&self, frame:&mut render::Frame, skeleton_of_instance:&SkeletonOfInstance) -> Result<(),render::Error> {
+        if !self.display() {
+            return Ok(());
+        }
+
+        let skeleton_guard=self.skeleton.read().unwrap();
+
+        skeleton_guard.render(frame, skeleton_of_instance)?;
+
+        Ok(())
+    }
+
+    /*
+    pub fn render(&self, frame:&mut render::Frame, instance_skeleton:&InstanceSkeleton) -> Result<(),render::Error> {
+        /*
         let skeleton_guard=self.skeleton.read().unwrap();
 
         {
@@ -298,6 +334,8 @@ impl Model{
         for (_,mesh) in meshes_guard.iter() {
             mesh.render(frame)?;
         }
+        */
+        instance_skeleton.render(frame)
 
         Ok(())
     }
@@ -317,4 +355,5 @@ impl Model{
 
         Ok(())
     }
+    */
 }

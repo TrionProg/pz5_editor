@@ -19,7 +19,8 @@ use super::ModelShader;
 use super::VBO;
 use super::Geometry;
 use super::SkeletonShader;
-use super::Skeleton;
+use super::SkeletonOfInstance;
+use super::GeometryOfSkeleton;
 
 pub struct Storage{
     pub model_shaders:HashMap<String,Rc<ModelShader>>,
@@ -27,7 +28,8 @@ pub struct Storage{
     pub skeleton_shader:SkeletonShader,
     pub grid:Grid,
     pub geometries:Pool<Geometry,Geometry>,
-    pub skeletons:Pool<Skeleton,Skeleton>,
+    pub skeletons_of_instances:Pool<SkeletonOfInstance,SkeletonOfInstance>,
+    pub geometries_of_skeletons:Pool<GeometryOfSkeleton,GeometryOfSkeleton>,
     //textures:
 }
 
@@ -45,7 +47,8 @@ impl Storage{
             skeleton_shader:skeleton_shader,
             grid:grid,
             geometries:Pool::new(),
-            skeletons:Pool::new(),
+            skeletons_of_instances:Pool::new(),
+            geometries_of_skeletons:Pool::new(),
         };
 
         Ok(storage)
@@ -83,27 +86,64 @@ impl Storage{
         Ok(())
     }
 
-    pub fn load_skeleton(&mut self,
+    pub fn load_skeleton_of_instance(&mut self,
+        instance:Arc<process::Instance>,
+        bones_count:usize,
+        window:&Window,
+    ) -> Result<(),Error> {
+        let mut skeleton_guard=instance.skeleton.write().unwrap();
+
+        match skeleton_guard.skeleton_id {
+            Some( ref skeleton_id ) => {self.skeletons_of_instances.remove(*skeleton_id);},
+            None => {},
+        }
+
+        skeleton_guard.skeleton_id=None;//Skeleton::new may return Error
+
+        let mut skeleton=SkeletonOfInstance::new(bones_count, window)?;
+
+        let inserted_skeleton=self.skeletons_of_instances.insert(skeleton);
+
+        skeleton_guard.skeleton_id=Some(inserted_skeleton.id);
+
+        Ok(())
+    }
+
+    pub fn load_geometry_of_skeleton(&mut self,
         model:Arc<process::Model>,
         joints_geometry:Vec<super::skeleton::Vertex>,
         bones_geometry:Vec<super::skeleton::Vertex>,
         window:&Window,
     ) -> Result<(),Error> {
-        let mut skeleton_id_guard=model.skeleton.write().unwrap();
+        let mut skeleton_guard=model.skeleton.write().unwrap();
 
-        match skeleton_id_guard.skeleton_id {
-            Some( ref skeleton_id ) => {self.skeletons.remove(*skeleton_id);},
+        match skeleton_guard.geometry_of_skeleton_id {
+            Some( ref skeleton_id ) => {self.geometries_of_skeletons.remove(*skeleton_id);},
             None => {},
         }
 
-        skeleton_id_guard.skeleton_id=None;
+        skeleton_guard.geometry_of_skeleton_id=None;//Skeleton::new may return Error
 
-        let mut skeleton=Skeleton::new(joints_geometry, bones_geometry, window)?;
+        let mut skeleton=GeometryOfSkeleton::new(joints_geometry, bones_geometry, window)?;
 
-        let inserted_skeleton=self.skeletons.insert(skeleton);
+        let inserted_skeleton=self.geometries_of_skeletons.insert(skeleton);
 
-        skeleton_id_guard.skeleton_id=Some(inserted_skeleton.id);
+        skeleton_guard.geometry_of_skeleton_id=Some(inserted_skeleton.id);
 
         Ok(())
+    }
+
+    pub fn get_skeleton_of_instance(&self, skeleton_id:ID) -> Result<&SkeletonOfInstance,Error> {
+        match self.skeletons_of_instances.get(skeleton_id) {
+            Some( skeleton ) => Ok(skeleton),
+            None => return Err(Error::NoSkeletonOfInstanceWithID(skeleton_id)),
+        }
+    }
+
+    pub fn get_geometry_of_skeleton(&self, skeleton_geometry_id:ID) -> Result<&GeometryOfSkeleton,Error> {
+        match self.geometries_of_skeletons.get(skeleton_geometry_id) {
+            Some( skeleton_geometry ) => Ok(skeleton_geometry),
+            None => return Err(Error::NoGeometryOfSkeletonWithID(skeleton_geometry_id)),
+        }
     }
 }

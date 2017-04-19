@@ -12,6 +12,9 @@ pub enum Error{
     FromColladaError(Box< from_collada::Error >),
     VertexFormatParseError(String),
     SendTaskError(Box<SendError<render::Task>>),
+    DuplicateInstance(String),
+    DuplicateBone(String),
+    SkeletonHasSeparatedBranches(String),
 }
 
 impl From<from_collada::Error> for Error {
@@ -43,6 +46,9 @@ impl std::fmt::Display for Error{
             Error::FromColladaError(ref e) => write!(f, "From collada error:{}", e),
             Error::VertexFormatParseError(ref vertex_format) => write!(f, "{}",vertex_format),
             Error::SendTaskError(ref e) => write!(f, "Can not send error:{}",e),
+            Error::DuplicateInstance(ref instance_name) => write!(f, "Duplicate instance \"{}\"", instance_name),
+            Error::DuplicateBone(ref bone_name) => write!(f, "Duplicate bone \"{}\"", bone_name),
+            Error::SkeletonHasSeparatedBranches(ref skeleton_name) => write!(f, "Skeleton \"{}\" has separated branches", skeleton_name),
             //Error::Pz5DocumentWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Pz5BinaryDataWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Other(ref message) => write!(f, "{}", message),

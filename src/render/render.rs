@@ -31,7 +31,8 @@ pub enum Task{
     Error(String),
     LoadLOD(Arc<process::LOD>, Pz5Geometry, String, GeometryType),
     RemoveLOD(Arc<process::LOD>,ID),
-    LoadSkeleton(Arc<process::Model>, Vec<super::skeleton::Vertex>, Vec<super::skeleton::Vertex>),
+    LoadSkeletonOfInstance(Arc<process::Instance>, usize),
+    LoadGeometryOfSkeleton(Arc<process::Model>, Vec<super::skeleton::Vertex>, Vec<super::skeleton::Vertex>),
     RemoveSkeleton(Arc<process::Model>,ID),
 }
 
@@ -107,12 +108,14 @@ impl Render {
                     Ok ( task ) => {
                         match task{
                             Task::Error(_) => {},
-                            Task::LoadLOD(lod,geometry,vertex_format,geometry_type) =>
+                            Task::LoadLOD(lod, geometry, vertex_format, geometry_type) =>
                                 self.storage.load_geometry(lod, geometry, geometry_type, vertex_format, &self.window)?,
                             Task::RemoveLOD(lod,geometry_id) => {},//TODO:removeLOD
-                            Task::LoadSkeleton(skeleton,joints_geometry, bones_geometry) =>
-                                self.storage.load_skeleton(skeleton, joints_geometry, bones_geometry, &self.window)?,
-                            Task::RemoveSkeleton(model,skeleton_id) => {},//TODO:removeSkeleton
+                            Task::LoadSkeletonOfInstance(instance, bones_count) =>
+                                self.storage.load_skeleton_of_instance(instance, bones_count, &self.window)?,
+                            Task::LoadGeometryOfSkeleton(model, joints_geometry, bones_geometry) =>
+                                self.storage.load_geometry_of_skeleton(model, joints_geometry, bones_geometry, &self.window)?,
+                            Task::RemoveSkeleton(model, skeleton_id) => {},//TODO:removeSkeleton
                         }
                     },
                     Err( mpsc::TryRecvError::Empty ) => break,

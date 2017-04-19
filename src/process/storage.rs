@@ -18,9 +18,11 @@ use super::Error;
 use super::LOD;
 use super::Mesh;
 use super::Model;
+use super::Scene;
 
 pub struct Storage{
     pub models: RwLock< HashMap<String, Arc<Model> > >,
+    pub scenes: RwLock< HashMap<String, Arc<Scene> > >,
     pub pool_lods: MTPool<LOD>,
     pub pool_meshes: MTPool<Mesh>,
     pub pool_models: MTPool<Model>,
@@ -31,6 +33,7 @@ impl Storage{
     pub fn empty(is_gui:bool) -> Self{
         Storage{
             models: RwLock::new( HashMap::new() ),
+            scenes: RwLock::new( HashMap::new() ),
             pool_lods: MTPool::new(),
             pool_meshes: MTPool::new(),
             pool_models: MTPool::new(),
@@ -84,24 +87,45 @@ impl Storage{
         }
     }
 
+    pub fn add_scene(&self, scene:Arc<Scene>){
+        let mut scenes_guard=self.scenes.write().unwrap();
+
+        let mut cnt=0;
+        let base_name=scene.attrib.read().unwrap().name.clone();
+        let mut name=base_name.clone();
+
+        loop{
+            match scenes_guard.entry(name.clone()) {
+                Entry::Vacant(e) => {
+                    e.insert(scene);
+                    break;
+                },
+                Entry::Occupied(_) => {
+                    cnt+=1;
+                    name=format!("{}.{}",base_name,cnt);
+                    scene.attrib.write().unwrap().name=name.clone();
+                }
+            }
+        }
+    }
+
     //TODO:add removemodel method
 
     pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
-        let models_guard=self.models.read().unwrap();
+        let scenes_guard=self.scenes.read().unwrap();
 
-        for (_,model) in models_guard.iter() {
-            model.prepare_skeleton(frame)?;
-            model.render(frame)?;
+        for (_,scene) in scenes_guard.iter() {
+            scene.render(frame)?;
         }
 
         Ok(())
     }
 
     pub fn render_skeletons(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
-        let models_guard=self.models.read().unwrap();
+        let scenes_guard=self.scenes.read().unwrap();
 
-        for (_,model) in models_guard.iter() {
-            model.render_skeleton(frame)?;
+        for (_,scene) in scenes_guard.iter() {
+            scene.render_skeletons(frame)?;
         }
 
         Ok(())

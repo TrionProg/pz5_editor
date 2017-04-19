@@ -1,13 +1,13 @@
 use location::*;
 
 pub struct ZeroFrame{
-    bones:Vec<Location>,
+    pub bones_locations:Vec<Location>,
 }
 
 impl ZeroFrame {
-    pub fn new( bones:Vec<Location> ) -> ZeroFrame {
+    pub fn new( bones_locations:Vec<Location> ) -> ZeroFrame {
         ZeroFrame {
-            bones:bones,
+            bones_locations:bones_locations,
         }
     }
 }
@@ -20,5 +20,5 @@ pub struct KeyFrame{
 }
 
 pub struct Animation{
-    bones:Vec<(usize,Vec<KeyFrame>)>,
+    pub bones:Vec<(usize,Vec<KeyFrame>)>,
 }

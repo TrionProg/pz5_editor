@@ -39,7 +39,7 @@ pub mod skeleton_shader;
 pub use self::skeleton_shader::SkeletonShader;
 
 pub mod skeleton;
-pub use self::skeleton::Skeleton;
+pub use self::skeleton::{SkeletonOfInstance,GeometryOfSkeleton};
 
 pub mod window;
 pub use self::window::Window;

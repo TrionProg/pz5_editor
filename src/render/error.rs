@@ -15,7 +15,8 @@ pub enum Error{
     NoShaderProgram(String),
     DrawError(Box<glium::DrawError>),
     NoGeometryWithID(ID),
-    NoSkeletonWithID(ID),
+    NoSkeletonOfInstanceWithID(ID),
+    NoGeometryOfSkeletonWithID(ID),
     NoSkeleton,
 }
 
@@ -70,7 +71,8 @@ impl std::fmt::Display for Error{
             Error::BufferCreationError(ref e) => write!(f, "Can not create buffer:{}", e),
             Error::DrawError(ref e) => write!(f, "Can not draw:{}", e),
             Error::NoGeometryWithID(id) => write!(f, "No geometry with id {}",id),
-            Error::NoSkeletonWithID(id) => write!(f, "No skeleton with id {}",id),
+            Error::NoSkeletonOfInstanceWithID(id) => write!(f, "No skeleton of instance with id {}",id),
+            Error::NoGeometryOfSkeletonWithID(id) => write!(f, "No geometry of skeleton with id {}",id),
             Error::NoSkeleton => write!(f, "No skeleton"),
         }
     }

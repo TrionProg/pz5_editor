@@ -8,103 +8,124 @@ use from_collada::VirtualSkeleton;
 use super::Error;
 
 use super::ZeroFrame;
+use super::SkeletonOfInstance;
 
 use render::skeleton::Vertex as SkeletonVertex;
 
 pub struct Skeleton {
-    pub bones:Vec<Bone>,
-    pub matrices:Vec<Matrix4>,
-    pub skeleton_id:Option<ID>,
-    pub animated:bool, //true - we need recalculate matrices
+    pub bones_array:Vec<Bone>,
+    pub bones_names:HashMap<String,usize>,
+    pub geometry_of_skeleton_id:Option<ID>,
+}
+
+pub struct Bone {
+    pub name:String,
+    pub parent_index:Option<usize>,
+
+    pub matrix:Matrix4,
 }
 
 impl Skeleton {
-    pub fn from_virtual<'a>(virtual_skeleton:&Option<VirtualSkeleton<'a>>, model_location:&Location ) -> Result<(Self,ZeroFrame,Vec<SkeletonVertex>,Vec<SkeletonVertex>),Error> {
+    pub fn from_virtual<'a>(virtual_skeleton:&Option<VirtualSkeleton<'a>> ) -> Result<(Self,ZeroFrame,Vec<SkeletonVertex>,Vec<SkeletonVertex>),Error> {
         use cgmath::SquareMatrix;
 
-        let (bones_count, mut bones_array, bones_names, mut bones_matrices) = Self::load_bones_from_virtual(virtual_skeleton, model_location)?;
-        let (joints_buffer, bones_buffer) = Self::build_geometry(&bones_array, &mut bones_matrices);
-
-
-        let zero_frame=match *virtual_skeleton {
-            Some( ref virtual_skeleton ) => ZeroFrame::new( virtual_skeleton.zero_frame_locations.clone() ),
-            None =>
-                ZeroFrame::new( Vec::new() ),
+        let zero_frame_locations=match *virtual_skeleton {
+            Some( ref virtual_skeleton ) => {
+                let mut zero_frame_locations=virtual_skeleton.zero_frame_locations.clone();
+                zero_frame_locations[0]=Location::identity();
+                zero_frame_locations
+            },
+            None => {
+                let mut zero_frame_locations=Vec::with_capacity(1);
+                zero_frame_locations.push(Location::identity());
+                zero_frame_locations
+            },
         };
+        let mut bones_matrices=Vec::with_capacity(zero_frame_locations.len());
+
+        let (bones_array, bones_names) = Self::load_bones_from_virtual(virtual_skeleton, &zero_frame_locations, &mut bones_matrices)?;
+        let (joints_buffer, bones_buffer) = Self::build_geometry(&bones_array, &zero_frame_locations, &mut bones_matrices);
+
+
+        let zero_frame=ZeroFrame::new( zero_frame_locations );
 
         let skeleton=Skeleton{
-            bones:bones_array,
-            matrices:bones_matrices,
-            skeleton_id:None,
-            animated:true,
+            bones_array:bones_array,
+            bones_names:bones_names,
+            geometry_of_skeleton_id:None,
         };
 
         Ok( (skeleton, zero_frame, joints_buffer, bones_buffer) )
     }
 
-    fn load_bones_from_virtual<'a>(virtual_skeleton:&Option<VirtualSkeleton<'a>>, model_location:&Location) -> Result<(usize, Vec<Bone>, HashMap<String,usize>, Vec<Matrix4>),Error> {
+    fn load_bones_from_virtual<'a>(virtual_skeleton:&Option<VirtualSkeleton<'a>>, zero_frame_locations:&Vec<Location>, bones_matrices:&mut Vec<Matrix4>) -> Result<(Vec<Bone>, HashMap<String,usize>),Error> {
         use cgmath::SquareMatrix;
 
-        let bones_count=match *virtual_skeleton {
-            Some( ref virtual_skeleton ) => virtual_skeleton.collada_skeleton.bones_array.len()+1,
-            None => 1,
-        };
+        let bones_count=zero_frame_locations.len();
 
         let mut bones_array=Vec::with_capacity(bones_count);
         let mut bones_names=HashMap::new();
         let mut bones_matrices=Vec::with_capacity(bones_count);
 
-        bones_array.push( Bone::new(
-            String::from("root"),
-            None,
-            model_location.clone(),//but matrix is identity
-        ));
-        bones_names.insert(String::from("root"),0);
-        bones_matrices.push(Matrix4::identity());
-
         match *virtual_skeleton {
             Some( ref virtual_skeleton ) => {
-                for (location,collada_bone) in virtual_skeleton.zero_frame_locations.iter().zip( virtual_skeleton.collada_skeleton.bones_array.iter() ) {
+                let mut is_none_parent=false;
+                for collada_bone in virtual_skeleton.collada_skeleton.bones_array.iter() {
+                    if collada_bone.parent.is_none() {
+                        if is_none_parent {
+                            return Err(Error::SkeletonHasSeparatedBranches( String::from("aa")/*virtual_skeleton.get_name().clone()*/ ));//TODO:fix this
+                        }
+
+                        is_none_parent=true;
+                    }
+                }
+
+                for (location,collada_bone) in zero_frame_locations.iter().zip( virtual_skeleton.collada_skeleton.bones_array.iter() ) {
                     let bone_name=&collada_bone.name;
-
-                    let parent=match collada_bone.parent {
-                        Some( bone_index ) => bone_index+1,
-                        None => 0,
-                    };
-
                     //use cgmath::SquareMatrix;
                     use cgmath::Vector3;
                     use cgmath::EuclideanSpace;
 
-                    let m = Matrix4::from(location.rotation)*
-                            Matrix4::from_translation(location.position.to_vec())*
+                    let m = Matrix4::from_translation(location.position.to_vec())*
+                            Matrix4::from(location.rotation)*
                             Matrix4::from_scale(location.scale.0);
 
-                    let mat=bones_matrices[parent]*m;
+                    let mat = match collada_bone.parent {
+                        Some( parent_bone_index ) => bones_matrices[parent_bone_index] * m,
+                        None => m,
+                    };
+
+                    //TODO:calculate inverse matrix
+
                     bones_matrices.push( mat );
 
                     match bones_names.insert( bone_name.clone(),bones_array.len() ) {
                         None => {},
-                        Some(_) => unreachable!()//return Err(Error::DuplicateBone( bone_name.clone() )),
+                        Some(_) => return Err(Error::DuplicateBone( bone_name.clone() )),
                     }
 
                     let bone=Bone::new(
                         bone_name.clone(),
-                        Some(parent),
-
-                        location.clone()
+                        collada_bone.parent.clone()
                     );
 
                     bones_array.push(bone);
                 }
             },
-            None => {},
+            None => {
+                bones_array.push( Bone::new(
+                    String::from("root"),
+                    None
+                ));
+                bones_names.insert(String::from("root"),0);
+                bones_matrices.push(Matrix4::identity());
+            },
         };
 
-        Ok( (bones_count, bones_array, bones_names, bones_matrices) )
+        Ok( (bones_array, bones_names) )
     }
 
-    fn build_geometry(bones_array:&Vec<Bone>, bones_matrices:&mut Vec<Matrix4>) -> (Vec<render::skeleton::Vertex>,Vec<render::skeleton::Vertex>) {
+    fn build_geometry(bones_array:&Vec<Bone>, zero_frame_locations:&Vec<Location>, bones_matrices:&mut Vec<Matrix4>) -> (Vec<render::skeleton::Vertex>,Vec<render::skeleton::Vertex>) {
         use cgmath::Vector3;
         use cgmath::Vector4;
         use cgmath::SquareMatrix;
@@ -112,23 +133,33 @@ impl Skeleton {
         use cgmath::BaseNum;
 
         //Calculate matrices
-        bones_matrices[0]=Matrix4::identity();
+        bones_matrices.clear();
 
-        for (i,bone) in bones_array.iter().skip(1).enumerate() {
-            let m = Matrix4::from(bone.location.rotation)*
-                    Matrix4::from_translation(bone.location.position.to_vec())*
-                    Matrix4::from_scale(bone.location.scale.0);
+        for (location,bone) in zero_frame_locations.iter().zip( bones_array.iter() ) {
+            let m = Matrix4::from_translation(location.position.to_vec())*
+                    Matrix4::from(location.rotation)*
+                    Matrix4::from_scale(location.scale.0);
 
-            bones_matrices[i]=bones_matrices[ bone.parent_index.unwrap() ] * m;
+            let mat = match bone.parent_index {
+                Some( parent_bone_index ) => bones_matrices[parent_bone_index] * m,
+                None => m,
+            };
+
+            bones_matrices.push( mat );
         }
 
         let mut joints_buffer=Vec::with_capacity(bones_array.len());
         let mut bones_buffer=Vec::with_capacity(bones_array.len()*2);
 
-        for (i,bone) in bones_array.iter().enumerate() {
-            //let parent
-            let begin_pos = Pos3D::from_homogeneous( bones_matrices[i]*Vector4::new(0.0,0.0,0.0,1.0) );
-            let end_pos = Pos3D::from_homogeneous(bones_matrices[i]*bone.location.position.to_homogeneous());
+        for (i,(location,bone)) in zero_frame_locations.iter().zip( bones_array.iter() ).enumerate() {
+            let begin_pos = match bone.parent_index {
+                Some( parent_bone_index ) =>
+                    Pos3D::from_homogeneous( bones_matrices[parent_bone_index]*Vector4::new(0.0,0.0,0.0,1.0) ),
+                None =>
+                    Pos3D::new(0.0,0.0,0.0),
+            };
+
+            let end_pos = Pos3D::from_homogeneous(bones_matrices[i]*location.position.to_homogeneous());
 
             joints_buffer.push(SkeletonVertex::new(
                 begin_pos,
@@ -149,129 +180,56 @@ impl Skeleton {
         }
 
         for i in joints_buffer.iter(){
-            println!("{} {}",i.bone_index, i.color);
+            println!("{} {} | {} {} {}",i.bone_index, i.color, i.position[0],i.position[1],i.position[2]);
         }
-
-        //bones_buffer.truncate(12);
-        //joints_buffer[11].bone_index=3;
-        //joints_buffer[11].color=0.0;
 
         (joints_buffer, bones_buffer)
     }
 
-    pub fn calculate_matrices(&mut self, frame:&mut render::Frame) -> Result<(),render::Error> {
-        if !self.animated {
-            return Ok(());
-        }
+    pub fn get_geometry_of_skeleton_from_storage<'a>(&self, frame:&render::Frame<'a>) -> Result<&'a render::GeometryOfSkeleton,render::Error> {
+        let geometry_of_skeleton_id = match self.geometry_of_skeleton_id {
+            Some( ref geometry_of_skeleton_id ) => *geometry_of_skeleton_id,
+            None => return Err(render::Error::NoSkeleton),
+        };
 
-        self.animated=false;
+        frame.storage.get_geometry_of_skeleton(geometry_of_skeleton_id)
+    }
 
-        //self.bones[1].location.scale.0=1.5;
-
-        //self.bones[11].location.position.z=2.0;
-        //self.bones[11].location.position.y=-0.5;
-
-        for i in 0..self.bones.len() {
-            use cgmath::SquareMatrix;
-            /*
-            println!("{:?} {:?}",self.bones[i].location.position,self.bones[i].location.rotation);
-            use cgmath::SquareMatrix;
-            use cgmath::Vector3;
-            use cgmath::EuclideanSpace;
-
-            let m=
-            Matrix4::from_translation(self.bones[i].location.position.to_vec())*
-            Matrix4::from(self.bones[i].location.rotation)*
-                    //Matrix4::from_translation(self.bones[i].location.position.to_vec())*
-                    Matrix4::from_scale(self.bones[i].location.scale.0);
-
-            let m=match self.bones[i].parent_index {
-                Some( parent_index ) => self.matrices[parent_index] * m,
-                _ => m,
-            };
-            */
-            use cgmath::EuclideanSpace;
-
-            self.matrices[i]=Matrix4::from_translation( self.bones[0].location.position.to_vec() );//m;//*Matrix4::from(self.bones[i].location.rotation);
-            /*
-            let bone_matrix=self.bones[i].calculate_matrix(&self.matrices);
-            use cgmath::SquareMatrix;
-            self.matrices[i]=bone_matrix;
-            */
-
-            //println!("{} {:?}",i,self.bones[i].parent_index);
-        }
+    pub fn render(&self, frame:&mut render::Frame, skeleton_of_instance:&SkeletonOfInstance) -> Result<(),render::Error> {
+        let ren_skeleton_of_instance=skeleton_of_instance.get_skeleton_of_instance_from_storage(frame)?;
+        let ren_geometry_of_skeleton=self.get_geometry_of_skeleton_from_storage(frame)?;
         /*
-        //self.bones[1].location.position.z=1.0;
-
-        println!("{:?} {:?}",self.bones[11].location.position,self.bones[11].location.rotation);
-        println!("{:?} {:?}",self.bones[3].location.position,self.bones[3].location.rotation);
-        println!("{:?} {:?}",self.bones[2].location.position,self.bones[2].location.rotation);
-        println!("{:?}",self.matrices[11]);
-        println!("{:?}",self.matrices[3]);
-        println!("{:?}",self.matrices[2]);
-        use cgmath::Vector4;
-        println!("{:?}",self.matrices[11]*Vector4::new(0.0,0.0,0.0,1.0));
-        println!("{:?}",self.matrices[3]*Vector4::new(0.0,0.0,0.0,1.0));
-        println!("{:?}",self.matrices[9]*Vector4::new(0.0,0.0,0.0,1.0));
-        println!("{:?}",self.matrices[10]*Vector4::new(0.0,0.0,0.0,1.0));
-        println!("{:?}",self.matrices[2]*Vector4::new(0.0,0.0,0.0,1.0));
-        */
-
-
-        let skeleton=self.get_skeleton_from_storage(frame)?;
-
-        skeleton.load_bones( &self.matrices[..] );
-
-        Ok(())
-    }
-
-    fn get_skeleton_from_storage<'a>(&self, frame:&'a render::Frame ) -> Result<&'a render::Skeleton,render::Error> {
-        let skeleton_id = match self.skeleton_id {
-            Some( ref skeleton_id ) => *skeleton_id,
-            None => return Err(render::Error::NoSkeleton),
-        };
-
-        let skeleton=match frame.storage.skeletons.get(skeleton_id) {
-            Some( skeleton ) => skeleton,
-            None => return Err(render::Error::NoGeometryWithID(skeleton_id)),
-        };
-
-        Ok(skeleton)
-    }
-
-
-    pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         //println!("{}",self.bones.len());
-        let skeleton_id = match self.skeleton_id {
-            Some( ref skeleton_id ) => *skeleton_id,
+        let skeleton_geometry_id = match self.skeleton_geometry_id {
+            Some( ref skeleton_geometry_id ) => *skeleton_geometry_id,
             None => return Err(render::Error::NoSkeleton),
         };
 
-        let skeleton=match frame.storage.skeletons.get(skeleton_id) {
-            Some( skeleton ) => skeleton,
+        let instance_skeleton_id = match instance_skeleton.skeleton_id {
+            Some( ref skeleton_geometry_id ) => *skeleton_geometry_id,
+            None => return Err(render::Error::NoSkeleton),
+        };
+
+        let skeleton_geometry=match frame.storage.skeletons_geometry.get(skeleton_geometry) {
+            Some( skeleton_geometry ) => skeleton_geometry,
             None => return Err(render::Error::NoGeometryWithID(skeleton_id)),
         };
+
+        let skeleton=match frame.storage.skeletons.get(skeleton) {
+            Some( skeleton_geometry ) => skeleton_geometry,
+            None => return Err(render::Error::NoGeometryWithID(skeleton_id)),
+        };
+        */
         //let skeleton=self.get_skeleton_from_storage(frame)?;
 
-        skeleton.render( frame )
+        ren_geometry_of_skeleton.render( frame,ren_skeleton_of_instance )
     }
-}
-
-pub struct Bone {
-    pub name:String,
-    pub parent_index:Option<usize>,
-
-    pub location:Location,
-
-    pub matrix:Matrix4,
 }
 
 impl Bone {
     pub fn new(
         name:String,
         parent_index:Option<usize>,
-        location:Location,
     ) -> Self {
         use cgmath::SquareMatrix;
 
@@ -279,12 +237,10 @@ impl Bone {
             name:name,
             parent_index:parent_index,
 
-            location:location,
-
             matrix:Matrix4::identity(),
         }
     }
-
+/*
     pub fn calculate_matrix(&self, matrices:&Vec<Matrix4>) -> Matrix4 {
         let bone_matrix=calculate_matrix(&self.location);
 
@@ -295,6 +251,7 @@ impl Bone {
 
         final_bone_matrix
     }
+*/
 /*
     pub fn build_geometry(&self, i:usize, joints_buffer:&mut Vec<render::skeleton::Vertex>, bones_buffer:&mut Vec<render::skeleton::Vertex>){
         let parent_index=match self.parent_index {

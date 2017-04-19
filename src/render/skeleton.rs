@@ -23,6 +23,24 @@ pub struct Vertex{
 
 implement_vertex!(Vertex, position, color, bone_index);
 
+pub struct BonesArray{
+    bones_matrices:[ [[f32; 4];4] ],
+}
+
+implement_buffer_content!(BonesArray);
+implement_uniform_block!(BonesArray, bones_matrices);
+
+pub struct SkeletonOfInstance {
+    pub id:ID,
+    pub ubo:UnsafeCell< UniformBuffer<BonesArray> >,
+}
+
+pub struct GeometryOfSkeleton {
+    pub id:ID,
+    pub joints_vbo:VertexBuffer<Vertex>,
+    pub bones_vbo:VertexBuffer<Vertex>,
+}
+
 impl Vertex{
     pub fn new(position:Pos3D, color:f32, bone_index:u32) -> Self {
         Vertex{
@@ -33,45 +51,16 @@ impl Vertex{
     }
 }
 
-pub struct BonesArray{
-    //bones: [f32],
-    bone_matrices:[ [[f32; 4];4] ],
-}
+impl SkeletonOfInstance{
+    pub fn new(bones_count:usize, window:&Window) -> Result<Self,Error> {
+        let ubo=UniformBuffer::empty_unsized_dynamic(&window.display, bones_count * 16 * 4)?;
 
-implement_buffer_content!(BonesArray);
-implement_uniform_block!(BonesArray, bone_matrices);
-
-pub struct Skeleton {
-    pub id:ID,
-    pub joints_vbo:VertexBuffer<Vertex>,
-    pub bones_vbo:VertexBuffer<Vertex>,
-    pub ubo:UnsafeCell< UniformBuffer<BonesArray> >,
-}
-
-impl Slot for Skeleton{
-    fn set_id(&mut self,id:ID) {
-        self.id=id;
-    }
-
-    fn get_id(&self) -> ID {
-        self.id
-    }
-}
-
-impl Skeleton{
-    pub fn new(joints_buffer:Vec<Vertex>, bones_buffer:Vec<Vertex>, window:&Window) -> Result<Self,Error> {
-        let ubo=UniformBuffer::empty_unsized_dynamic(&window.display, joints_buffer.len() * 16 * 4)?;
-        let joints_vbo=VertexBuffer::new(&window.display, joints_buffer.as_ref())?;
-        let bones_vbo=VertexBuffer::new(&window.display, bones_buffer.as_ref())?;
-
-        let mut skeleton=Skeleton{
+        let mut skeleton_of_instance=SkeletonOfInstance{
             id:ID::zeroed(),
-            joints_vbo:joints_vbo,
-            bones_vbo:bones_vbo,
             ubo:UnsafeCell::new( ubo ),
         };
 
-        Ok(skeleton)
+        Ok(skeleton_of_instance)
     }
 
     /*
@@ -88,28 +77,62 @@ impl Skeleton{
     }
     */
 
-    pub fn load_bones(&self, bone_matrices:&[Matrix4]) {
+    pub fn load_bones(&self, bones_matrices:&[Matrix4]) {
         unsafe{
             let ubo = &mut *self.ubo.get();
             let mut mapping = ubo.map();
 
-            for (i,m) in bone_matrices.iter().enumerate() {
-                mapping.bone_matrices[i]=Into::<[[f32; 4]; 4]>::into(*m);
+            for (i,m) in bones_matrices.iter().enumerate() {
+                mapping.bones_matrices[i]=Into::<[[f32; 4]; 4]>::into(*m);
             }
         }
-        /*
-        let bones_array=BonesArray {
-            bones:bones,
-        };
+    }
+}
 
-        self.ubo.write(&bones_array);
-        */
+impl Slot for SkeletonOfInstance{
+    fn set_id(&mut self,id:ID) {
+        self.id=id;
     }
 
-    pub fn render(&self, frame:&mut Frame) -> Result<(),Error> {
+    fn get_id(&self) -> ID {
+        self.id
+    }
+}
+
+
+
+impl GeometryOfSkeleton{
+    pub fn new(joints_buffer:Vec<Vertex>, bones_buffer:Vec<Vertex>, window:&Window) -> Result<Self,Error> {
+        let joints_vbo=VertexBuffer::new(&window.display, joints_buffer.as_ref())?;
+        let bones_vbo=VertexBuffer::new(&window.display, bones_buffer.as_ref())?;
+
+        let mut geometry_of_skeleton=GeometryOfSkeleton{
+            id:ID::zeroed(),
+            joints_vbo:joints_vbo,
+            bones_vbo:bones_vbo,
+        };
+
+        Ok(geometry_of_skeleton)
+    }
+
+    /*
+    fn build(buffer:Vec<Vertex>, window:&Window) -> Result<VertexBuffer<Vertex>,Error> {
+        let vbo=VertexBuffer::new(&window.display, buffer.as_ref())?;
+
+        Ok(vbo)
+    }
+
+    fn rebuild(buffer:Vec<Vertex>, window:&Window) -> Result<VertexBuffer<Vertex>,Error> {
+        let vbo=VertexBuffer::new(&window.display, buffer.as_ref())?;
+
+        Ok(vbo)
+    }
+    */
+
+    pub fn render(&self, frame:&mut Frame, skeleton_of_instance:&SkeletonOfInstance) -> Result<(),Error> {
         use glium::Surface;
 
-        let ubo=unsafe{ &*self.ubo.get() };
+        let ubo=unsafe{ &*skeleton_of_instance.ubo.get() };
 
         let uniforms = uniform! {
             perspective_matrix: Into::<[[f32; 4]; 4]>::into(frame.perspective_matrix),
@@ -134,5 +157,15 @@ impl Skeleton{
         )?;
 
         Ok(())
+    }
+}
+
+impl Slot for GeometryOfSkeleton{
+    fn set_id(&mut self,id:ID) {
+        self.id=id;
+    }
+
+    fn get_id(&self) -> ID {
+        self.id
     }
 }

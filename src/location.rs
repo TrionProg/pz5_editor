@@ -37,6 +37,16 @@ impl Location {
             rotation:Quaternion::new(1.0,0.0,0.0,0.0),
         }
     }
+
+    pub fn calculate_matrix(&self) -> Matrix4 {
+        use cgmath::SquareMatrix;
+        use cgmath::EuclideanSpace;
+
+        Matrix4::from_translation(self.position.to_vec())*
+        Matrix4::from(self.rotation)*
+        Matrix4::from_scale(self.scale.0)
+    }
+
 }
 
 impl PartialEq for Location {
@@ -76,12 +86,32 @@ impl std::ops::Sub for Location {
 
     fn sub(self, other: Location) -> Location {
         use cgmath::EuclideanSpace;
-        
+
         Location {
             position: Pos3D::from_vec(self.position-other.position),
             scale: Scale(self.scale.0/other.scale.0),
             rotation: self.rotation-other.rotation,
         }
+    }
+}
+
+impl From<Matrix4> for Location {
+    fn from(matrix:Matrix4) -> Self {
+        /*
+        let position = Position::with_asset(self.mat[3], self.mat[7], self.mat[11], asset);
+
+        let scale_x = ((self.mat[0].powi(2) + self.mat[4].powi(2) + self.mat[8].powi(2)).sqrt()*100.0).round()/100.0;
+        let scale_y = ((self.mat[1].powi(2) + self.mat[5].powi(2) + self.mat[9].powi(2)).sqrt()*100.0).round()/100.0;
+        let scale_z = ((self.mat[2].powi(2) + self.mat[6].powi(2) + self.mat[10].powi(2)).sqrt()*100.0).round()/100.0;
+
+        let scale = Scale::with_asset(scale_x, scale_y, scale_z, asset);
+
+        let quat=self.to_quat(asset);
+
+        Location::new(position, scale, quat)
+        */
+
+        Location::identity()//TODO:fix this
     }
 }
 
