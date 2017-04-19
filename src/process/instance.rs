@@ -34,6 +34,8 @@ impl Instance {
         let mut skeleton=SkeletonOfInstance::new(&model,location);
         let bones_count=skeleton.bones_matrices.len();
 
+        println!("AAA:{:?}", location.rotation);
+
         let instance=Arc::new(Instance{
             model:model,
             attrib:RwLock::new(InstanceAttrib{

@@ -32,7 +32,31 @@ impl Skeleton {
         let zero_frame_locations=match *virtual_skeleton {
             Some( ref virtual_skeleton ) => {
                 let mut zero_frame_locations=virtual_skeleton.zero_frame_locations.clone();
-                zero_frame_locations[0]=Location::identity();
+
+                let quat=zero_frame_locations[0].rotation;
+
+                for loc in zero_frame_locations.iter_mut().skip(1) {
+                    /*
+                    let tmp=loc.position.y;
+                    loc.position.y=loc.position.z;
+                    loc.position.z=tmp;
+
+                    loc.rotation=loc.rotation-quat;
+                    */
+                    //loc.rotation=loc.rotation+quat;
+                    //loc.rotation.v.x=-loc.rotation.v.x;
+                    //loc.rotation.v.y=-loc.rotation.v.y;
+                    //loc.rotation.v.z=-loc.rotation.v.z;
+                    /*
+                    let tmp=loc.rotation.v.y;
+                    loc.rotation.v.y=loc.rotation.v.z;
+                    loc.rotation.v.z=tmp;
+                    */
+                }
+
+                println!("AAA:{:?}", zero_frame_locations[0].rotation);
+
+                //zero_frame_locations[0]=Location::identity();
                 zero_frame_locations
             },
             None => {
@@ -148,35 +172,53 @@ impl Skeleton {
             bones_matrices.push( mat );
         }
 
-        let mut joints_buffer=Vec::with_capacity(bones_array.len());
-        let mut bones_buffer=Vec::with_capacity(bones_array.len()*2);
+        //who have children?
 
-        for (i,(location,bone)) in zero_frame_locations.iter().zip( bones_array.iter() ).enumerate() {
+        let mut have_children=vec!(false;bones_array.len());
+        for bone in bones_array.iter() {
+            match bone.parent_index {
+                Some( parent_bone_index ) => have_children[parent_bone_index] = true,
+                None => {},
+            };
+        }
+
+        let have_no_children_count=have_children.iter().filter(|has| !**has).count();
+
+        //build geometry
+
+        let mut joints_buffer=Vec::with_capacity(bones_array.len());
+        let mut bones_buffer=Vec::with_capacity((bones_array.len()+have_no_children_count)*2);
+
+        for (i,bone) in bones_array.iter().enumerate() {
             let begin_pos = match bone.parent_index {
-                Some( parent_bone_index ) =>
-                    Pos3D::from_homogeneous( bones_matrices[parent_bone_index]*Vector4::new(0.0,0.0,0.0,1.0) ),
+                Some( parent_bone_index ) => {
+                    let vpos=bones_matrices[parent_bone_index]*Vector4::new(0.0,0.0,0.0,1.0);
+                    Pos3D::new( vpos.x, vpos.y, vpos.z )
+                },
                 None =>
                     Pos3D::new(0.0,0.0,0.0),
             };
 
-            let end_pos = Pos3D::from_homogeneous(bones_matrices[i]*location.position.to_homogeneous());
+            let vpos=bones_matrices[i]*Vector4::new(0.0,0.0,0.0,1.0);
+            let end_pos = Pos3D::new( vpos.x, vpos.y, vpos.z );
 
-            joints_buffer.push(SkeletonVertex::new(
-                begin_pos,
-                0.7,
-                i as u32
-            ));
+            joints_buffer.push(SkeletonVertex::new( begin_pos, 0.7, i as u32 ));
 
-            bones_buffer.push(SkeletonVertex::new(
-                begin_pos,
-                0.7,
-                i as u32
-            ));
-            bones_buffer.push(SkeletonVertex::new(
-                end_pos,
-                0.3,
-                i as u32
-            ));
+            bones_buffer.push( SkeletonVertex::new( begin_pos, 0.7, i as u32 ));
+            bones_buffer.push( SkeletonVertex::new( end_pos, 0.3, i as u32 ));
+        }
+
+        for (i,bone) in bones_array.iter().enumerate() {
+            if !have_children[i] {
+                let vpos=bones_matrices[i]*Vector4::new(0.0,0.0,0.0,1.0);
+                let begin_pos = Pos3D::new( vpos.x, vpos.y, vpos.z );
+
+                let vpos=bones_matrices[i]*Vector4::new(0.0,0.0,0.3,1.0);
+                let end_pos = Pos3D::new( vpos.x, vpos.y, vpos.z );
+
+                bones_buffer.push(SkeletonVertex::new( begin_pos, 0.7, i as u32 ));
+                bones_buffer.push(SkeletonVertex::new( end_pos, 0.1, i as u32 ));
+            }
         }
 
         for i in joints_buffer.iter(){
