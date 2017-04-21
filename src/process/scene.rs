@@ -26,6 +26,14 @@ impl Scene {
         }
     }
 
+    pub fn animate(&self, current_time:&std::time::Instant) {
+        let instances_guard=self.instances.read().unwrap();
+
+        for (_,instance) in instances_guard.iter() {
+            instance.animate(current_time);
+        }
+    }
+
     pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         let instances_guard=self.instances.read().unwrap();
 

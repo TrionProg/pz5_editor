@@ -27,7 +27,7 @@ pub mod model;
 pub use self::model::Model;
 
 pub mod animation;
-pub use self::animation::{Animation,ZeroFrame,KeyFrame};
+pub use self::animation::{Animation,ZeroFrame,KeyFrame,Track};
 
 pub mod scene;
 pub use self::scene::Scene;

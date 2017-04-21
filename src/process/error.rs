@@ -15,6 +15,7 @@ pub enum Error{
     DuplicateInstance(String),
     DuplicateBone(String),
     SkeletonHasSeparatedBranches(String),
+    DuplicateAnimation(String),
 }
 
 impl From<from_collada::Error> for Error {
@@ -49,6 +50,7 @@ impl std::fmt::Display for Error{
             Error::DuplicateInstance(ref instance_name) => write!(f, "Duplicate instance \"{}\"", instance_name),
             Error::DuplicateBone(ref bone_name) => write!(f, "Duplicate bone \"{}\"", bone_name),
             Error::SkeletonHasSeparatedBranches(ref skeleton_name) => write!(f, "Skeleton \"{}\" has separated branches", skeleton_name),
+            Error::DuplicateAnimation(ref animation_name) => write!(f, "Duplicate animation \"{}\"", animation_name),
             //Error::Pz5DocumentWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Pz5BinaryDataWriteError(ref e) => write!(f, "Pz5 document write error:{}", e),
             //Error::Other(ref message) => write!(f, "{}", message),

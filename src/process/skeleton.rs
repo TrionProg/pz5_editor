@@ -20,6 +20,7 @@ pub struct Skeleton {
 
 pub struct Bone {
     pub name:String,
+    pub id:String,
     pub parent_index:Option<usize>,
 
     pub matrix:Matrix4,
@@ -130,6 +131,7 @@ impl Skeleton {
 
                     let bone=Bone::new(
                         bone_name.clone(),
+                        collada_bone.id.clone(),
                         collada_bone.parent.clone()
                     );
 
@@ -138,6 +140,7 @@ impl Skeleton {
             },
             None => {
                 bones_array.push( Bone::new(
+                    String::from("root"),
                     String::from("root"),
                     None
                 ));
@@ -190,21 +193,21 @@ impl Skeleton {
         let mut bones_buffer=Vec::with_capacity((bones_array.len()+have_no_children_count)*2);
 
         for (i,bone) in bones_array.iter().enumerate() {
-            let begin_pos = match bone.parent_index {
+            let (begin_pos,parent_index) = match bone.parent_index {
                 Some( parent_bone_index ) => {
                     let vpos=bones_matrices[parent_bone_index]*Vector4::new(0.0,0.0,0.0,1.0);
-                    Pos3D::new( vpos.x, vpos.y, vpos.z )
+                    (Pos3D::new( vpos.x, vpos.y, vpos.z ), parent_bone_index)
                 },
                 None =>
-                    Pos3D::new(0.0,0.0,0.0),
+                    (Pos3D::new(0.0,0.0,0.0), 0)
             };
 
             let vpos=bones_matrices[i]*Vector4::new(0.0,0.0,0.0,1.0);
             let end_pos = Pos3D::new( vpos.x, vpos.y, vpos.z );
 
-            joints_buffer.push(SkeletonVertex::new( begin_pos, 0.7, i as u32 ));
+            joints_buffer.push(SkeletonVertex::new( end_pos, 0.7, i as u32 ));
 
-            bones_buffer.push( SkeletonVertex::new( begin_pos, 0.7, i as u32 ));
+            bones_buffer.push( SkeletonVertex::new( begin_pos, 0.7, parent_index as u32 ));
             bones_buffer.push( SkeletonVertex::new( end_pos, 0.3, i as u32 ));
         }
 
@@ -271,12 +274,14 @@ impl Skeleton {
 impl Bone {
     pub fn new(
         name:String,
+        id:String,
         parent_index:Option<usize>,
     ) -> Self {
         use cgmath::SquareMatrix;
 
         Bone{
             name:name,
+            id:id,
             parent_index:parent_index,
 
             matrix:Matrix4::identity(),

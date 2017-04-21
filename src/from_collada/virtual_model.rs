@@ -16,6 +16,7 @@ use super::VirtualMesh;
 use super::VirtualLOD;
 use super::VirtualInstance;
 use super::VirtualSkeleton;
+use super::VirtualAnimation;
 
 use super::Error;
 use super::location::pos3d_from_collada;
@@ -29,7 +30,7 @@ pub struct VirtualModel<'a> {
     pub location:Location,
     pub skeleton:Option<VirtualSkeleton<'a>>,
     pub meshes:HashMap<String,VirtualMesh<'a>>,
-    pub animations:Vec< Vec<&'a Arc<collada::Animation>> >,//TODO:Add model location
+    pub animations:Vec< VirtualAnimation<'a> >,//TODO:Add model location
 
     pub instances:Vec< Weak<VirtualInstance<'a>> >,
     //location or store
@@ -228,10 +229,10 @@ impl<'a> VirtualModel<'a>{
             match virtual_models.get_mut( &animation.skeleton_id ){
                 Some( virtual_model ) => {
                     if virtual_model.animations.len()==0 {
-                        virtual_model.animations.push( Vec::new() );
+                        virtual_model.animations.push( VirtualAnimation::new(&virtual_model.location) );
                     }
 
-                    virtual_model.animations[0].push( animation );
+                    virtual_model.animations[0].bones_tracks.push( animation );
                 },
                 None => {},
             }
@@ -276,8 +277,19 @@ impl<'a> VirtualModel<'a>{
         let mut virtual_instances:Vec< Rc<VirtualInstance<'a>> > = Vec::with_capacity(virtual_models.len());
 
         'instance_loop: for (_,mut virtual_model_instance) in virtual_models_instances.drain() {
+            let virtual_model_instance_name=virtual_model_instance.get_name().clone();
+
+            for (i,virtual_animation) in virtual_model_instance.animations.iter_mut().enumerate() {
+                virtual_animation.name=if i==0 {
+                    virtual_model_instance_name.clone()
+                } else {
+                    format!("{} #{}",&virtual_model_instance_name,i)
+                };
+            }
+
             for virtual_model_rc in virtual_models.iter() {
                 let mut virtual_model=virtual_model_rc.borrow_mut();
+
                 if virtual_model.eq(&virtual_model_instance) {
                     if virtual_model.skeleton.is_some() {
                         virtual_model.animations.append( &mut virtual_model_instance.animations );

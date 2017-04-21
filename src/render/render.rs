@@ -209,6 +209,7 @@ impl Render {
             //file_name.push("pz5.dae");
             //file_name.push("box.dae");
             //file_name.push("scene.dae");
+            //file_name.push("anim2.dae");
             file_name.push("anim9.dae");
             self.to_process_tx.send( process::Task::LoadModel(file_name) );
         }

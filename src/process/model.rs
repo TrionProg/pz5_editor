@@ -43,7 +43,7 @@ pub struct Model{
     pub meshes: RwLock< HashMap<String, Arc<Mesh>> >,
     pub skeleton: RwLock< Skeleton >,
     pub zero_frame: RwLock< ZeroFrame >,
-    //pub animations: RwLock< HashMap<
+    pub animations: RwLock< HashMap<String,Arc<Animation>> >,
 
     pub attrib:RwLock< ModelAttrib >,
 }
@@ -65,6 +65,7 @@ impl Model{
 
         skeleton:Skeleton,
         zero_frame:ZeroFrame,
+        animations:HashMap<String, Arc<Animation>>,
 
         object:&Storage
     ) -> Result< Arc<Self>, Error >{
@@ -74,6 +75,7 @@ impl Model{
             meshes:RwLock::new( HashMap::new() ),
             skeleton:RwLock::new( skeleton ),
             zero_frame:RwLock::new( zero_frame ),
+            animations:RwLock::new( animations ),
 
             attrib:RwLock::new(
                 ModelAttrib{
@@ -277,12 +279,20 @@ impl Model{
     ) -> Result<Arc<Self>,Error> {
         let (skeleton, zero_frame, joints_geometry, bones_geometry) = Skeleton::from_virtual(&virtual_model.skeleton)?;
 
+        let animations=Animation::from_virtual_animations(&virtual_model.animations, &skeleton)?;
+
+        println!("anims {}",animations.len());
+        for (an,a) in animations.iter() {
+            println!("{}",an);
+        }
+
         let model=Model::new(
             virtual_model.get_name().clone(),
             String::new(),
 
             skeleton,
             zero_frame,
+            animations,
 
             object
         )?;

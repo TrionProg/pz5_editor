@@ -111,6 +111,14 @@ impl Storage{
 
     //TODO:add removemodel method
 
+    pub fn animate(&self, current_time:&std::time::Instant) {
+        let scenes_guard=self.scenes.read().unwrap();
+
+        for (_,scene) in scenes_guard.iter() {
+            scene.animate(current_time);
+        }
+    }
+
     pub fn render(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         let scenes_guard=self.scenes.read().unwrap();
 
