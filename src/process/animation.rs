@@ -83,7 +83,23 @@ impl Animation {
                 }
             }
 
-            //multiple bones_tracks root to virtual_animation.location
+            if bones_tracks.len()==0 {
+                return Err(Error::FromColladaError(
+                    Box::new(from_collada::Error::AnimationWithoutTracks( virtual_animation.name.clone() ))
+                ));
+            }
+
+            bones_tracks.sort_by(|track1,track2| track1.bone_index.partial_cmp(&track2.bone_index).unwrap());
+
+            if bones_tracks[0].bone_index==0 {
+                let root_track=&mut bones_tracks[0];
+                for root_keyframe in root_track.keyframes.iter_mut() {
+                    root_keyframe.location.position=Pos3D::new(3.0, 1.0, -1.5);
+                    root_keyframe.location.rotation=Quaternion::new(1.0,0.0,0.0,0.0);
+                }
+            }
+
+            //TODO:multiple bones_tracks root to virtual_animation.location
 
             let animation=Animation::new(virtual_animation.name.clone(), bones_tracks);
 

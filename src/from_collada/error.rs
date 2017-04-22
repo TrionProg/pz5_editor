@@ -24,6 +24,7 @@ pub enum Error{
     MeshLODLocationsMismatch(String,String),
     UnsupportedInterpolation(String),
     AnimationWithoutKeyframes(String),
+    AnimationWithoutTracks(String),
     Other(String),
 }
 
@@ -50,6 +51,7 @@ impl std::fmt::Display for Error{
             Error::MeshLODLocationsMismatch(ref mesh_name, ref lod_name) => write!(f, "Location of lod \"{}\" mismatch with location of mesh \"{}\"", lod_name, mesh_name),
             Error::UnsupportedInterpolation(ref interpolation) => write!(f, "Unsupported interpolation \"{}\"", interpolation),
             Error::AnimationWithoutKeyframes(ref bone_id) => write!(f, "Animation of bone \"{}\" has no keyframes", bone_id),
+            Error::AnimationWithoutTracks(ref animation_name) => write!(f, "Animation \"{}\" has no tracks", animation_name),
             Error::Other(ref message) => write!(f, "{}", message),
         }
     }

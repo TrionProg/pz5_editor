@@ -23,7 +23,7 @@ pub struct Bone {
     pub id:String,
     pub parent_index:Option<usize>,
 
-    pub matrix:Matrix4,
+    pub invert_matrix:Matrix4,
 }
 
 impl Skeleton {
@@ -120,7 +120,9 @@ impl Skeleton {
                         None => m,
                     };
 
-                    //TODO:calculate inverse matrix
+                    let invert_matrix=mat.invert().unwrap();
+
+                    //TODO:clear code and optimize
 
                     bones_matrices.push( mat );
 
@@ -132,7 +134,8 @@ impl Skeleton {
                     let bone=Bone::new(
                         bone_name.clone(),
                         collada_bone.id.clone(),
-                        collada_bone.parent.clone()
+                        collada_bone.parent.clone(),
+                        invert_matrix,
                     );
 
                     bones_array.push(bone);
@@ -142,7 +145,8 @@ impl Skeleton {
                 bones_array.push( Bone::new(
                     String::from("root"),
                     String::from("root"),
-                    None
+                    None,
+                    Matrix4::identity().invert().unwrap()
                 ));
                 bones_names.insert(String::from("root"),0);
                 bones_matrices.push(Matrix4::identity());
@@ -276,15 +280,13 @@ impl Bone {
         name:String,
         id:String,
         parent_index:Option<usize>,
+        invert_matrix:Matrix4,
     ) -> Self {
-        use cgmath::SquareMatrix;
-
         Bone{
             name:name,
             id:id,
             parent_index:parent_index,
-
-            matrix:Matrix4::identity(),
+            invert_matrix:invert_matrix,
         }
     }
 /*

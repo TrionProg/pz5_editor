@@ -11,6 +11,7 @@ use std::time::Instant as TimeInstant;
 use super::Error;
 use super::Model;
 use super::Animation;
+use super::Skeleton;
 
 pub struct InstanceAttrib {
     pub name:String,
@@ -47,6 +48,16 @@ impl Instance {
 
         println!("AAA:{:?}", location.rotation);
 
+        let anim={
+            let anim_guard=model.animations.read().unwrap();
+            let anim=match anim_guard.get(&"Armature".to_string()) {
+                Some( ref anim ) => {println!("found");Mutex::new(Some( PlayingAnimation::new(anim.clone(), &TimeInstant::now(), true) ))},
+                None => Mutex::new(None),
+            };
+
+            anim
+        };
+
         let instance=Arc::new(Instance{
             model:model,
             attrib:RwLock::new(InstanceAttrib{
@@ -55,7 +66,7 @@ impl Instance {
                 display:true,
             }),
             skeleton:RwLock::new(skeleton),
-            playing_animation:Mutex::new(None),
+            playing_animation:anim,
         });
 
         to_render_tx.send(render::Task::LoadSkeletonOfInstance( instance.clone(), bones_count ))?;
@@ -71,8 +82,9 @@ impl Instance {
 
     fn calculate_matrices(&self, frame:&mut render::Frame) -> Result<(),render::Error> {
         let mut instance_skeleton_guard=self.skeleton.write().unwrap();
+        let model_skeleton_guard=self.model.skeleton.read().unwrap();
 
-        instance_skeleton_guard.calculate_matrices(frame)
+        instance_skeleton_guard.calculate_matrices(&model_skeleton_guard,frame)
     }
 
     pub fn animate(&self, current_time:&TimeInstant) {
@@ -141,17 +153,38 @@ impl SkeletonOfInstance {
     }
 
 
-    pub fn calculate_matrices(&mut self, frame:&mut render::Frame) -> Result<(),render::Error> {
+    pub fn calculate_matrices(&mut self, skeleton:&Skeleton, frame:&mut render::Frame) -> Result<(),render::Error> {
         if !self.animated {
             return Ok(());
         }
 
         self.animated=false;
-
+        /*
         use cgmath::SquareMatrix;
 
         for i in 0..self.bones_locations.len() {
             self.bones_matrices[i]=Matrix4::identity();
+        }
+        */
+
+        use cgmath::Vector3;
+        use cgmath::EuclideanSpace;
+
+        for (i,(location,bone)) in self.bones_locations.iter().zip( skeleton.bones_array.iter() ).enumerate() {
+            let m = Matrix4::from_translation(location.position.to_vec())*
+                    Matrix4::from(location.rotation)*
+                    Matrix4::from_scale(location.scale.0);
+
+            let mat = match bone.parent_index {
+                Some( parent_bone_index ) => self.bones_matrices[parent_bone_index] * m,
+                None => m,
+            };
+
+            self.bones_matrices[i]=mat;
+        }
+
+        for (i,bone) in skeleton.bones_array.iter().enumerate() {
+            self.bones_matrices[i]=self.bones_matrices[i]*bone.invert_matrix;
         }
 
         let skeleton=self.get_skeleton_of_instance_from_storage(frame)?;
@@ -267,7 +300,7 @@ impl PlayingAnimation {
         let animation_bones_tracks_guard=self.animation.bones_tracks.read().unwrap();
 
         let animation_duration=current_time.duration_since(self.start_time);
-        let current_time=animation_duration.as_secs() as f32 + (animation_duration.subsec_nanos()/1000_000) as f32 / 1000.0;
+        let animation_time=animation_duration.as_secs() as f32 + (animation_duration.subsec_nanos()/1000_000) as f32 / 1000.0;
 
         'track_loop: for (play_anim_track,anim_track) in self.bones_tracks.iter_mut().zip( animation_bones_tracks_guard.iter() ) {
             let last_frame = match *play_anim_track {
@@ -276,12 +309,12 @@ impl PlayingAnimation {
             };
 
             for i in last_frame+1..anim_track.keyframes.len() {
-                if anim_track.keyframes[i].time >= current_time {
+                if anim_track.keyframes[i].time >= animation_time {
                     let prev_frame_index=i-1;
                     let prev_frame=&anim_track.keyframes[prev_frame_index];
                     let next_frame=&anim_track.keyframes[i];
 
-                    let k=(current_time-prev_frame.time) / (next_frame.time-prev_frame.time);
+                    let k=(animation_time-prev_frame.time) / (next_frame.time-prev_frame.time);
 
                     let bone_location=&mut skeleton.bones_locations[anim_track.bone_index];
                     bone_location.position=prev_frame.location.position + (next_frame.location.position - prev_frame.location.position)*k;
@@ -289,6 +322,8 @@ impl PlayingAnimation {
                     bone_location.scale.0=prev_frame.location.scale.0 + (next_frame.location.scale.0 - prev_frame.location.scale.0)*k;
 
                     *play_anim_track=Some( prev_frame_index );
+
+                    continue 'track_loop;
                 }
             }
 
@@ -304,6 +339,7 @@ impl PlayingAnimation {
         if self.animating_bones_count==0 {
             if self.cyclic {
                 self.animating_bones_count=animation_bones_tracks_guard.len();
+                self.start_time=current_time.clone();
 
                 for play_anim_track in self.bones_tracks.iter_mut() {
                     *play_anim_track=Some(0);

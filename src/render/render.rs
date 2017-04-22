@@ -141,6 +141,7 @@ impl Render {
             }
 
             if Instant::now()>next_frame_time {
+                self.process_storage.animate(&Instant::now());
                 self.render()?;
                 /*
                 match Frame::new(&self.camera, &self.window, &self.storage) {
